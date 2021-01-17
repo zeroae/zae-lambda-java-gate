@@ -1,4 +1,4 @@
-package helloworld;
+package co.zeroae.gate;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
