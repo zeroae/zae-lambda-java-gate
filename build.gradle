@@ -1,10 +1,11 @@
 plugins {
     id 'java-library'
+    id 'com.palantir.git-version' version '0.12.3'
     id 'maven-publish'
 }
 
 group 'co.zeroae'
-version '0.1.1-SNAPSHOT'
+version gitVersion()
 
 repositories {
     mavenCentral()
