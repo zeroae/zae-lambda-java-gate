@@ -73,11 +73,11 @@ The SAM CLI reads the application template to determine the API's routes and the
 
 ```yaml
       Events:
-        HelloWorld:
+        Gate:
           Type: Api
           Properties:
-            Path: /hello
-            Method: get
+            Path: /execute
+            Method: post
 ```
 
 ## Add a resource to your application
@@ -90,7 +90,7 @@ To simplify troubleshooting, SAM CLI has a command called `sam logs`. `sam logs`
 `NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
 
 ```bash
-zeroae.gate$ sam logs -n HelloWorldFunction --stack-name zeroae.gate --tail
+zeroae.gate$ sam logs -n LambdaGate --stack-name zeroae.gate --tail
 ```
 
 You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
@@ -101,7 +101,7 @@ Tests are defined in the `LambdaGate/src/test` folder in this project.
 
 ```bash
 zeroae.gate$ cd LambdaGate 
-HelloWorldFunction$ gradle test
+LambdaGate$ gradle test
 ```
 
 ## Cleanup
