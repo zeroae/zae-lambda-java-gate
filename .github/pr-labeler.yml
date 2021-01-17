@@ -1,0 +1,11 @@
+feature:
+  - feature/*
+  - feat/*
+  - f/*
+  - f-*
+fix:
+  - fix/*
+  - issue/*
+  - i/*
+  - i-*
+chore: chore/*
