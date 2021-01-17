@@ -7,6 +7,8 @@ import gate.creole.ExecutionException;
 import gate.creole.ResourceInstantiationException;
 import gate.util.GateException;
 import gate.util.persistence.PersistenceManager;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.net.URL;
@@ -27,6 +29,7 @@ public class App implements RequestHandler< Map<String, ?>, GatewayResponse> {
         }
     }
 
+    private static final Logger logger = LogManager.getLogger(App.class);
     private static final CorpusController application = loadApplication();
 
     public GatewayResponse handleRequest(final Map<String, ?> input, final Context context) {
@@ -48,14 +51,14 @@ public class App implements RequestHandler< Map<String, ?>, GatewayResponse> {
                 headers.put("Content-Type", "application/xml");
                 return new GatewayResponse(doc.toXml(), headers, 200);
             } catch (ExecutionException e) {
-                context.getLogger().log(e.getMessage());
+                logger.error(e);
                 return new GatewayResponse(e.getMessage(), headers, 500);
             } finally {
                 corpus.clear();
                 Factory.deleteResource(doc);
             }
         } catch (ResourceInstantiationException e) {
-            context.getLogger().log(e.getMessage());
+            logger.warn(e);
             return new GatewayResponse(e.getMessage(), headers, 400);
         }
     }
