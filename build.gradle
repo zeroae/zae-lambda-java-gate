@@ -1,0 +1,43 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group 'co.zeroae'
+version '0.1.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'com.amazonaws:aws-lambda-java-core:1.2.1'
+    implementation 'uk.ac.gate:gate-core:8.6.1'
+
+    runtimeOnly 'com.amazonaws:aws-lambda-java-log4j2:1.2.0'
+
+    testImplementation 'junit:junit:4.13.1'
+    testImplementation 'com.github.stefanbirkner:system-lambda:1.1.1'
+}
+
+test {
+    useJUnit()
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/zeroae/packages")
+            credentials {
+                username = project.findProperty("github.username") ?: System.getenv("GITHUB_USER")
+                password = project.findProperty("github.token") ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+    publications {
+        gate(MavenPublication) {
+            from(components.java)
+        }
+    }
+}
