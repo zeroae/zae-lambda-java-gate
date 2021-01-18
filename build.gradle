@@ -12,8 +12,9 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.amazonaws:aws-lambda-java-core:1.2.1'
     implementation 'uk.ac.gate:gate-core:8.6.1'
+    implementation 'com.amazonaws:aws-lambda-java-core:1.2.1'
+    implementation 'com.amazonaws:aws-lambda-java-events:2.2.9'
 
     runtimeOnly 'com.amazonaws:aws-lambda-java-log4j2:1.2.0'
 
