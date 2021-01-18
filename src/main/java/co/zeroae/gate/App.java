@@ -16,7 +16,6 @@ import org.apache.log4j.Logger;
 import java.io.File;
 import java.net.URL;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -24,7 +23,7 @@ import java.util.Objects;
  * It loads the application from the .gapp file defined by the GATE_APP_FILE environment variable.
  * For every lambda invocation, it runs the application and outputs the result in GateXML format.
  */
-public class App implements RequestHandler<APIGatewayProxyRequestEvent, GatewayResponse> {
+public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
     static {
         try {
             Gate.init();
@@ -36,12 +35,13 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, GatewayR
     private static final Logger logger = LogManager.getLogger(App.class);
     private static final CorpusController application = loadApplication();
 
-    public GatewayResponse handleRequest(APIGatewayProxyRequestEvent input, final Context context) {
-        final Map<String, String> headers = new HashMap<>();
-        headers.put("Content-Type", "text/plain");
+    public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, final Context context) {
+        final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
+                .withHeaders(new HashMap<>());
+        response.getHeaders().put("Content-Type", "text/plain");
 
         if (!input.getHeaders().get("Content-Type").equalsIgnoreCase("text/plain")) {
-            return new GatewayResponse("We only support text/plain input.", headers, 400);
+            return response.withBody("We only support text/plain input.").withStatusCode(400);
         }
 
         try {
@@ -50,18 +50,18 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, GatewayR
             corpus.add(doc);
             try {
                 application.execute();
-                headers.put("Content-Type", "application/xml");
-                return new GatewayResponse(doc.toXml(), headers, 200);
+                response.getHeaders().put("Content-Type", "application/xml");
+                return response.withBody(doc.toXml()).withStatusCode(200);
             } catch (ExecutionException e) {
                 logger.error(e);
-                return new GatewayResponse(e.getMessage(), headers, 500);
+                return response.withBody(e.getMessage()).withStatusCode(500);
             } finally {
                 corpus.clear();
                 Factory.deleteResource(doc);
             }
         } catch (ResourceInstantiationException e) {
             logger.warn(e);
-            return new GatewayResponse(e.getMessage(), headers, 400);
+            return response.withBody(e.getMessage()).withStatusCode(400);
         }
     }
 

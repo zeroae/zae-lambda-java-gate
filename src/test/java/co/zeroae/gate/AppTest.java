@@ -1,6 +1,7 @@
 package co.zeroae.gate;
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -14,7 +15,7 @@ public class AppTest {
   @Test
   public void successfulResponse() throws Exception {
     App app = withEnvironmentVariable("GATE_APP_NAME", "annie")
-      .execute(() -> new App());
+      .execute(App::new);
 
     // Create the Input
     final HashMap<String, String> input_headers = new HashMap<>();
@@ -28,12 +29,12 @@ public class AppTest {
     final TestContext context = new TestContext();
 
     // Invoke the App
-    final GatewayResponse result = app.handleRequest(input, context);
+    final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
 
     // Assert Results
-    assertEquals(result.getStatusCode(), 200);
+    assertEquals(result.getStatusCode().intValue(), 200);
     assertEquals(result.getHeaders().get("Content-Type"), "application/xml");
-    String content = result.getBody();
+    final String content = result.getBody();
     assertNotNull(content);
     assertTrue(content.contains("GateDocument version=\"3\""));
   }
