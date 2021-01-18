@@ -2,9 +2,9 @@
 
 This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
 
-- LambdaGate/src/main - Code for the application's Lambda function.
+- gate-app/src/main - Code for the application's Lambda function.
 - events - Invocation events that you can use to invoke the function.
-- LambdaGate/src/test - Unit tests for the application code. 
+- gate-app/src/test - Unit tests for the application code. 
 - template.yaml - A template that defines the application's AWS resources.
 
 The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
@@ -52,14 +52,14 @@ Build your application with the `sam build` command.
 zeroae.gate$ sam build
 ```
 
-The SAM CLI installs dependencies defined in `LambdaGate/build.gradle`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
+The SAM CLI installs dependencies defined in `gate-app/build.gradle`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
 
 Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
 
 Run functions locally and invoke them with the `sam local invoke` command.
 
 ```bash
-zeroae.gate$ sam local invoke LambdaGate --event events/event.json
+zeroae.gate$ sam local invoke LambdaGateApp --event events/event.json
 ```
 
 The SAM CLI can also emulate your application's API. Use the `sam local start-api` to run the API locally on port 3000.
@@ -90,18 +90,18 @@ To simplify troubleshooting, SAM CLI has a command called `sam logs`. `sam logs`
 `NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
 
 ```bash
-zeroae.gate$ sam logs -n LambdaGate --stack-name zeroae.gate --tail
+zeroae.gate$ sam logs -n LambdaGateApp --stack-name zeroae.gate --tail
 ```
 
 You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
 
 ## Unit tests
 
-Tests are defined in the `LambdaGate/src/test` folder in this project.
+Tests are defined in the `gate-app/src/test` folder in this project.
 
 ```bash
-zeroae.gate$ cd LambdaGate 
-LambdaGate$ gradle test
+zeroae.gate$ cd gate-app
+gate-app$ gradle test
 ```
 
 ## Cleanup
