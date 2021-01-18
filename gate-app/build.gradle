@@ -1,0 +1,53 @@
+plugins {
+    id 'java'
+}
+
+ext.gateCloudDir = file("$buildDir/gatecloud")
+ext.gateApplicationDir = file("$gateCloudDir/application")
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'https://maven.pkg.github.com/zeroae/packages'
+        credentials {
+            username = project.findProperty("github.username") ?: System.getenv("GITHUB_USER")
+            password = project.findProperty("github.token") ?: System.getenv("GITHUB_TOKEN")
+        }
+    }
+}
+
+configurations {
+    gate
+}
+
+dependencies {
+    implementation 'co.zeroae:zae-lambda-java-gate:0.1.3'
+    gate 'uk.ac.gate:gate-core:8.6.1'
+}
+
+// TODO: This is *not* currently working
+//   - For some reason the plugins and resources are not being copied.
+task packagegapp() {
+    // This file is from gate-core
+    // ref: https://gate.ac.uk/sale/tao/splitap5.html#sec:ant:packagegapp
+    doLast {
+        mkdir(gateApplicationDir)
+        ant.typedef(resource: 'gate/util/ant/antlib.xml', classpath: configurations.gate.asPath)
+        ant.packagegapp(
+                src: 'application.xgapp',
+                destfile: "$gateApplicationDir/application.xgapp",
+                copyPlugins: 'yes',
+                copyResourceDirs: 'yes',
+                onUnresolved: 'fail'
+        )
+    }
+}
+
+task gatecloudUnpack(type: Copy) {
+    def zipFile = file("application.zip")
+    def outputDir = gateApplicationDir
+
+    from zipTree(zipFile)
+    into outputDir
+}
+sourceSets.main.output.dir gateCloudDir, builtBy: gatecloudUnpack
