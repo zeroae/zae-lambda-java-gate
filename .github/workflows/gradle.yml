@@ -8,12 +8,12 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  release:
+    types: [ published ]
 
 jobs:
-  build:
-
+  gradle:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
     - name: Set up JDK 1.8
@@ -24,3 +24,9 @@ jobs:
       run: chmod +x gradlew
     - name: Build with Gradle
       run: ./gradlew build
+    - name: Publish with Gradle
+      if: github.event_name == 'release'
+      run: ./gradlew publish
+      env:
+        GITHUB_USER: github-actions
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
