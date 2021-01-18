@@ -28,5 +28,5 @@ jobs:
       if: github.event_name == 'release'
       run: ./gradlew publish
       env:
-        GITHUB_USER: ${{ GITHUB_ACTOR }}
+        GITHUB_USER: github-actions
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
