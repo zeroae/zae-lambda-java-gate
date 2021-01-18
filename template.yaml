@@ -38,7 +38,7 @@ Outputs:
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/execute/"
   LambdaGateApp:
     Description: "Gate Application ARN"
-    Value: !GetAtt GateApp.Arn
+    Value: !GetAtt LambdaGateApp.Arn
   LambdaGateAppIamRole:
     Description: "Implicit IAM Role created for Gate Application"
-    Value: !GetAtt GateAppRole.Arn
+    Value: !GetAtt LambdaGateAppRole.Arn
