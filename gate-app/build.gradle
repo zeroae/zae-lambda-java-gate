@@ -21,7 +21,7 @@ configurations {
 }
 
 dependencies {
-    implementation 'co.zeroae:zae-lambda-java-gate:0.1.3'
+    implementation 'co.zeroae:zae-lambda-java-gate:0.1.4'
     gate 'uk.ac.gate:gate-core:8.6.1'
 }
 
