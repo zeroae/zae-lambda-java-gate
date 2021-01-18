@@ -2,6 +2,9 @@ package co.zeroae.gate;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+
 import gate.*;
 import gate.creole.ExecutionException;
 import gate.creole.ResourceInstantiationException;
@@ -21,7 +24,7 @@ import java.util.Objects;
  * It loads the application from the .gapp file defined by the GATE_APP_FILE environment variable.
  * For every lambda invocation, it runs the application and outputs the result in GateXML format.
  */
-public class App implements RequestHandler< Map<String, ?>, GatewayResponse> {
+public class App implements RequestHandler<APIGatewayProxyRequestEvent, GatewayResponse> {
     static {
         try {
             Gate.init();
@@ -33,18 +36,16 @@ public class App implements RequestHandler< Map<String, ?>, GatewayResponse> {
     private static final Logger logger = LogManager.getLogger(App.class);
     private static final CorpusController application = loadApplication();
 
-    public GatewayResponse handleRequest(final Map<String, ?> input, final Context context) {
+    public GatewayResponse handleRequest(APIGatewayProxyRequestEvent input, final Context context) {
         final Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "text/plain");
 
-        @SuppressWarnings("unchecked")
-        final Map<String, String> inputHeaders = (Map<String, String>) input.get("headers");
-        if (!inputHeaders.get("Content-Type").equalsIgnoreCase("text/plain")) {
+        if (!input.getHeaders().get("Content-Type").equalsIgnoreCase("text/plain")) {
             return new GatewayResponse("We only support text/plain input.", headers, 400);
         }
 
         try {
-            final Document doc = Factory.newDocument(input.get("body").toString());
+            final Document doc = Factory.newDocument(input.getBody());
             final Corpus corpus = application.getCorpus();
             corpus.add(doc);
             try {

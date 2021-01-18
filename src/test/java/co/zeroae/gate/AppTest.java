@@ -1,5 +1,6 @@
 package co.zeroae.gate;
 
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import org.junit.Test;
 
 import java.util.Collections;
@@ -18,15 +19,16 @@ public class AppTest {
     // Create the Input
     final HashMap<String, String> input_headers = new HashMap<>();
     input_headers.put("Content-Type", "text/plain");
-    final HashMap<String, Object> input = new HashMap<>();
-    input.put("headers", Collections.unmodifiableMap(input_headers));
-    input.put("body", "This is a test. My name is LambdaTestFunction, and I just watched the T.V. show Wanda Vision.");
+    APIGatewayProxyRequestEvent input = new APIGatewayProxyRequestEvent()
+            .withHttpMethod("POST")
+            .withHeaders(Collections.unmodifiableMap(input_headers))
+            .withBody("This is a test. My name is LambdaTestFunction, and I just watched the T.V. show Wanda Vision.");
 
     // Context
     final TestContext context = new TestContext();
 
     // Invoke the App
-    final GatewayResponse result = app.handleRequest(Collections.unmodifiableMap(input), context);
+    final GatewayResponse result = app.handleRequest(input, context);
 
     // Assert Results
     assertEquals(result.getStatusCode(), 200);
