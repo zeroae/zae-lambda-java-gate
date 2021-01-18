@@ -40,10 +40,6 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                 .withHeaders(new HashMap<>());
         response.getHeaders().put("Content-Type", "text/plain");
 
-        if (!input.getHeaders().get("Content-Type").equalsIgnoreCase("text/plain")) {
-            return response.withBody("We only support text/plain input.").withStatusCode(400);
-        }
-
         try {
             final Document doc = Factory.newDocument(input.getBody());
             final Corpus corpus = application.getCorpus();
