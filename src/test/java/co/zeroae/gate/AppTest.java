@@ -2,7 +2,8 @@ package co.zeroae.gate;
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
-import org.junit.Before;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -56,5 +57,26 @@ public class AppTest {
         final TestContext context = new TestContext();
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
         assertEquals(result.getStatusCode().intValue(), 200);
+    }
+
+    @Test
+    public void testApplicationJsonResponse() throws Exception {
+        final HashMap<String, String> inputHeaders = new HashMap<>();
+        inputHeaders.put("Accept", "application/json");
+        APIGatewayProxyRequestEvent input = new APIGatewayProxyRequestEvent()
+                .withHttpMethod("POST")
+                .withHeaders(Collections.unmodifiableMap(inputHeaders))
+                .withBody("My name is Lambda Function and I approve this test.");
+        final TestContext context = new TestContext();
+        final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
+        assertEquals(result.getStatusCode().intValue(), 200);
+
+        // Ensure we get back application/json back
+        assertEquals(result.getHeaders().get("Content-Type"), "application/json");
+        final JsonFactory factory = new JsonFactory();
+        final JsonParser parser = factory.createParser(result.getBody());
+        while (!parser.isClosed()) {
+            parser.nextToken();
+        }
     }
 }

@@ -6,6 +6,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 
 import gate.*;
+import gate.corpora.export.GATEJsonExporter;
 import gate.creole.ExecutionException;
 import gate.creole.ResourceInstantiationException;
 import gate.util.GateException;
@@ -13,7 +14,9 @@ import gate.util.persistence.PersistenceManager;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Objects;
@@ -34,8 +37,10 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
     private static final Logger logger = LogManager.getLogger(App.class);
     private static final CorpusController application = loadApplication();
+    private static final GATEJsonExporter gateJsonExporter = new GATEJsonExporter();
 
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, final Context context) {
+        final String responseType = input.getHeaders().getOrDefault("Accept", "application/xml");
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                 .withHeaders(new HashMap<>());
         response.getHeaders().put("Content-Type", "text/plain");
@@ -46,9 +51,9 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             corpus.add(doc);
             try {
                 application.execute();
-                response.getHeaders().put("Content-Type", "application/xml");
-                return response.withBody(doc.toXml()).withStatusCode(200);
-            } catch (ExecutionException e) {
+                response.getHeaders().put("Content-Type", responseType);
+                return response.withBody(encode(doc, responseType)).withStatusCode(200);
+            } catch (ExecutionException | IOException e) {
                 logger.error(e);
                 return response.withBody(e.getMessage()).withStatusCode(500);
             } finally {
@@ -58,6 +63,21 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         } catch (ResourceInstantiationException e) {
             logger.warn(e);
             return response.withBody(e.getMessage()).withStatusCode(400);
+        }
+    }
+
+    /**
+     * @param doc an instance of gate.Document
+     * @param responseType One of the supported response types
+     */
+    private String encode(Document doc, String responseType) throws IOException {
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        if (responseType.equals("application/json")) {
+            gateJsonExporter.export(doc, baos);
+            return baos.toString();
+        }
+        else {
+            return doc.toXml();
         }
     }
 
