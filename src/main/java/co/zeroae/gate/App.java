@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Objects;
 
 /**
@@ -71,9 +72,20 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
      * @param responseType One of the supported response types
      */
     private String encode(Document doc, String responseType) throws IOException {
+        final FeatureMap exportOptions = Factory.newFeatureMap();
+
+        // Take *all* annotation types.
+        final AnnotationSet defaultAnnots = doc.getAnnotations();
+        final HashSet<String> annotationTypes = new HashSet<>();
+        for (Annotation annotation: defaultAnnots.inDocumentOrder()) {
+            annotationTypes.add(annotation.getType());
+        }
+        exportOptions.put("annotationTypes", annotationTypes);
+
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         if (responseType.equals("application/json")) {
-            gateJsonExporter.export(doc, baos);
+            gateJsonExporter.setAnnotationTypes(doc.getAnnotationSetNames());
+            gateJsonExporter.export(doc, baos, exportOptions);
             return baos.toString();
         }
         else {

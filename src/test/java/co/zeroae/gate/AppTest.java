@@ -66,7 +66,7 @@ public class AppTest {
         APIGatewayProxyRequestEvent input = new APIGatewayProxyRequestEvent()
                 .withHttpMethod("POST")
                 .withHeaders(Collections.unmodifiableMap(inputHeaders))
-                .withBody("My name is Lambda Function and I approve this test.");
+                .withBody("Today is Monday.");
         final TestContext context = new TestContext();
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
         assertEquals(result.getStatusCode().intValue(), 200);
