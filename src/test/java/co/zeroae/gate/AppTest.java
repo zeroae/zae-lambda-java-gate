@@ -62,7 +62,7 @@ public class AppTest {
 
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
 
-        assertEquals(result.getHeaders().get("Content-Type"), "application/xml");
+        assertEquals("application/xml", result.getHeaders().get("Content-Type"));
         final String resultBody = result.getBody();
         assertNotNull(resultBody);
 
@@ -74,7 +74,7 @@ public class AppTest {
             reader.next();
         } while(reader.getEventType() != XMLStreamReader.START_ELEMENT);
         gate.corpora.DocumentStaxUtils.readGateXmlDocument(reader, doc);
-        assertEquals(doc.getContent().toString(), content);
+        assertEquals(content, doc.getContent().toString());
     }
 
     @Test
@@ -83,7 +83,16 @@ public class AppTest {
         input.withBody("I am still valid text...");
         final TestContext context = new TestContext();
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
-        assertEquals(result.getStatusCode().intValue(), 200);
+        assertEquals(200, result.getStatusCode().intValue());
+    }
+
+    @Test
+    public void testNonSegmentedText() {
+        input.withBody("\uD83D\uDE2D");
+        input_headers.put("Accept", "application/json");
+        final TestContext context = new TestContext();
+        final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
+        assertEquals(400, result.getStatusCode().intValue());
     }
 
     @Test
@@ -92,10 +101,10 @@ public class AppTest {
         input.withBody("Today is Monday.");
 
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
-        assertEquals(result.getStatusCode().intValue(), 200);
+        assertEquals(200, result.getStatusCode().intValue());
 
         // Ensure we get back application/json back
-        assertEquals(result.getHeaders().get("Content-Type"), "application/json");
+        assertEquals("application/json", result.getHeaders().get("Content-Type"));
         final JsonFactory factory = new JsonFactory();
         final JsonParser parser = factory.createParser(result.getBody());
         while (!parser.isClosed()) {
