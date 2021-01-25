@@ -54,9 +54,12 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                 application.execute();
                 response.getHeaders().put("Content-Type", responseType);
                 return response.withBody(encode(doc, responseType)).withStatusCode(200);
-            } catch (ExecutionException | IOException e) {
+            } catch (ExecutionException e) {
                 logger.error(e);
-                return response.withBody(e.getMessage()).withStatusCode(500);
+                return response.withBody(e.getMessage()).withStatusCode(400);
+            } catch (IOException e) {
+                logger.error(e);
+                return response.withBody(e.getMessage()).withStatusCode(406);
             } finally {
                 corpus.clear();
                 Factory.deleteResource(doc);
