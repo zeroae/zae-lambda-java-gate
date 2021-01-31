@@ -53,7 +53,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             try {
                 application.execute();
                 response.getHeaders().put("Content-Type", responseType);
-                return response.withBody(encode(doc, responseType)).withStatusCode(200);
+                return response.withBody(export(doc, responseType)).withStatusCode(200);
             } finally {
                 corpus.clear();
                 Factory.deleteResource(doc);
@@ -74,7 +74,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
      * @param doc an instance of gate.Document
      * @param responseType One of the supported response types
      */
-    private String encode(Document doc, String responseType) throws IOException {
+    private String export(Document doc, String responseType) throws IOException {
         final FeatureMap exportOptions = Factory.newFeatureMap();
 
         // Take *all* annotation types.
@@ -90,8 +90,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             gateJsonExporter.setAnnotationTypes(doc.getAnnotationSetNames());
             gateJsonExporter.export(doc, baos, exportOptions);
             return baos.toString();
-        }
-        else {
+        } else {
             return doc.toXml();
         }
     }
