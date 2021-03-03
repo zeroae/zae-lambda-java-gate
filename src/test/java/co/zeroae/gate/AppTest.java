@@ -5,13 +5,10 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import gate.Document;
-import gate.Factory;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamReader;
 import java.io.StringReader;
 import java.util.HashMap;
 
@@ -26,7 +23,6 @@ public class AppTest {
         app = withEnvironmentVariable("GATE_APP_NAME", "annie")
                 .execute(App::new);
     }
-
 
     private static App app = null;
     private static TestContext context = new TestContext();
@@ -66,14 +62,7 @@ public class AppTest {
         final String resultBody = result.getBody();
         assertNotNull(resultBody);
 
-        Document doc = Factory.newDocument("");
-        XMLStreamReader reader = XMLInputFactory.newFactory().createXMLStreamReader(
-                new StringReader(resultBody)
-        );
-        do {
-            reader.next();
-        } while(reader.getEventType() != XMLStreamReader.START_ELEMENT);
-        gate.corpora.DocumentStaxUtils.readGateXmlDocument(reader, doc);
+        Document doc = Utils.xmlToDocument(new StringReader(resultBody));
         assertEquals(doc.getContent().toString(), content);
     }
 
@@ -101,5 +90,21 @@ public class AppTest {
         while (!parser.isClosed()) {
             parser.nextToken();
         }
+    }
+
+    @Test
+    public void testCache() {
+        // Create the Input
+        input_headers.put("Content-Type", "text/plain");
+        input.withBody("This is a test. My name is LambdaTestFunction, and I just watched the T.V. show Wanda Vision.");
+
+        // Invoke the App
+        final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
+        assertEquals(result.getStatusCode().intValue(), 200);
+        assertEquals(result.getHeaders().get("x-zae-gate-cache"), "MISS");
+
+        final APIGatewayProxyResponseEvent cachedResult = app.handleRequest(input, context);
+        assertEquals(cachedResult.getStatusCode().intValue(), 200);
+        assertEquals(cachedResult.getHeaders().get("x-zae-gate-cache"), "HIT");
     }
 }
