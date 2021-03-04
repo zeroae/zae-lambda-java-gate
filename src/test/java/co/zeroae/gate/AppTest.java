@@ -2,9 +2,11 @@ package co.zeroae.gate;
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import com.amazonaws.xray.AWSXRay;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import gate.Document;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -20,8 +22,10 @@ public class AppTest {
 
     @BeforeClass
     public static void setUpClass() throws Exception {
+        AWSXRay.beginSegment("setUpClass");
         app = withEnvironmentVariable("GATE_APP_NAME", "annie")
                 .execute(App::new);
+        AWSXRay.endSegment();
     }
 
     private static App app = null;
@@ -29,10 +33,16 @@ public class AppTest {
 
     @Before
     public void setUp() {
+        AWSXRay.beginSegment("Test");
         input_headers = new HashMap<>();
         input = new APIGatewayProxyRequestEvent()
                 .withHttpMethod("POST")
                 .withHeaders(input_headers);
+    }
+
+    @After
+    public void tearDown() {
+        AWSXRay.endSegment();
     }
     private APIGatewayProxyRequestEvent input = null;
     private HashMap<String, String> input_headers = null;

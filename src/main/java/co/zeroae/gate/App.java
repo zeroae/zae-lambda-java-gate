@@ -5,6 +5,9 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 
+import com.amazonaws.xray.AWSXRay;
+import com.amazonaws.xray.entities.Subsegment;
+
 import gate.*;
 import gate.corpora.export.GATEJsonExporter;
 import gate.creole.ResourceInstantiationException;
@@ -33,11 +36,13 @@ import java.util.Objects;
  */
 public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
     static {
-        try {
-            Gate.init();
-        } catch (GateException e) {
-            throw new RuntimeException(e);
-        }
+        AWSXRay.createSubsegment("Gate Init", () -> {
+            try {
+                Gate.init();
+            } catch (GateException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     private static final String GATE_APP_NAME = System.getenv("GATE_APP_NAME");
@@ -46,33 +51,41 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private static final double CACHE_DIR_USAGE = .9;
 
     private static final Logger logger = LogManager.getLogger(App.class);
-    private static final CorpusController application = loadApplication();
+    private static final CorpusController application = AWSXRay.createSubsegment(
+            "Gate Load", App::loadApplication);
     private static final GATEJsonExporter gateJsonExporter = new GATEJsonExporter();
 
-
-    private static final DiskLruCache cache = initializeCache();
+    private static final DiskLruCache cache = AWSXRay.createSubsegment(
+            "Cache Init", App::initializeCache);
 
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, final Context context) {
+        final Subsegment handlerSubsegment = AWSXRay.beginSubsegment("Lambda handleRequest");
         final String responseType = input.getHeaders().getOrDefault("Accept", "application/xml");
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                 .withHeaders(new HashMap<>());
         response.getHeaders().put("Content-Type", "text/plain");
 
         try {
-            final String bodyDigest = computeMessageDigest(input.getBody());
+            final String bodyDigest = AWSXRay.createSubsegment(
+                    "Message Digest", () -> computeMessageDigest(input.getBody()));
             response.getHeaders().put("x-zae-gate-cache", "HIT");
             final Document doc = cacheComputeIfNull(
                     bodyDigest,
                     () -> {
+                        final Subsegment subsegment = AWSXRay.beginSubsegment("Gate Execute");
                         final Document rv = Factory.newDocument(input.getBody());
                         final Corpus corpus = application.getCorpus();
+                        response.getHeaders().put("x-zae-gate-cache", "MISS");
                         corpus.add(rv);
                         try {
                             application.execute();
+                        } catch (GateException e) {
+                            subsegment.addException(e);
+                            throw e;
                         } finally {
                             corpus.clear();
+                            AWSXRay.endSubsegment();
                         }
-                        response.getHeaders().put("x-zae-gate-cache", "MISS");
                         return rv;
                     }
             );
@@ -84,10 +97,14 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             }
         } catch (GateException e) {
             logger.error(e);
+            handlerSubsegment.addException(e);
             return response.withBody(e.getMessage()).withStatusCode(400);
         } catch (IOException e) {
             logger.error(e);
+            handlerSubsegment.addException(e);
             return response.withBody(e.getMessage()).withStatusCode(406);
+        } finally {
+            AWSXRay.endSubsegment();
         }
     }
 
@@ -96,13 +113,16 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             final DiskLruCache.Snapshot snapshot = cache.get(key);
             if (snapshot == null) {
                 final Document doc = processor.process();
-                try {
-                    DiskLruCache.Editor editor = cache.edit(key);
-                    editor.set(0, doc.toXml());
-                    editor.commit();
-                } catch (IOException e) {
-                    logger.warn(e);
-                }
+                AWSXRay.createSubsegment("Cache Edit", (subsegment)-> {
+                    try {
+                        DiskLruCache.Editor editor = cache.edit(key);
+                        editor.set(0, doc.toXml());
+                        editor.commit();
+                    } catch (IOException e) {
+                        subsegment.addException(e);
+                        logger.warn(e);
+                    }
+                });
                 return doc;
             } else {
                 try {
@@ -190,5 +210,4 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private interface TextProcessor {
         Document process() throws GateException;
     }
-
 }
