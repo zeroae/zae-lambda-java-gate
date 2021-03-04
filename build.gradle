@@ -14,8 +14,12 @@ repositories {
 dependencies {
     implementation 'uk.ac.gate:gate-core:8.6.1'
     implementation 'uk.ac.gate.plugins:format-json:8.7'
+
+    implementation platform('com.amazonaws:aws-xray-recorder-sdk-bom:2.4.0')
     implementation 'com.amazonaws:aws-lambda-java-core:1.2.1'
     implementation 'com.amazonaws:aws-lambda-java-events:2.2.9'
+    implementation 'com.amazonaws:aws-xray-recorder-sdk-core'
+
     implementation 'com.jakewharton:disklrucache:2.0.2'
 
     runtimeOnly 'com.amazonaws:aws-lambda-java-log4j2:1.2.0'
