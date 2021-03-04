@@ -7,8 +7,6 @@ import gate.creole.ResourceInstantiationException;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.Reader;
 
 public class Utils {

@@ -59,7 +59,6 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             "Cache Init", App::initializeCache);
 
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, final Context context) {
-        final Subsegment handlerSubsegment = AWSXRay.beginSubsegment("Lambda handleRequest");
         final String responseType = input.getHeaders().getOrDefault("Accept", "application/xml");
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                 .withHeaders(new HashMap<>());
@@ -67,7 +66,11 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
         try {
             final String bodyDigest = AWSXRay.createSubsegment(
-                    "Message Digest", () -> computeMessageDigest(input.getBody()));
+                    "Message Digest", (subsegment) -> {
+                        String rv = computeMessageDigest(input.getBody());
+                        subsegment.putMetadata("SHA256", rv);
+                        return rv;
+                    });
             response.getHeaders().put("x-zae-gate-cache", "HIT");
             final Document doc = cacheComputeIfNull(
                     bodyDigest,
@@ -89,22 +92,34 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                         return rv;
                     }
             );
+            AWSXRay.beginSubsegment("Gate Export");
+            AWSXRay.getCurrentSubsegment().putMetadata("Content-Type", responseType);
             try {
                 response.getHeaders().put("Content-Type", responseType);
                 return response.withBody(export(doc, responseType)).withStatusCode(200);
             } finally {
                 Factory.deleteResource(doc);
+                AWSXRay.endSubsegment();
             }
         } catch (GateException e) {
             logger.error(e);
-            handlerSubsegment.addException(e);
+            AWSXRay.getCurrentSubsegment().addException(e);
             return response.withBody(e.getMessage()).withStatusCode(400);
         } catch (IOException e) {
             logger.error(e);
-            handlerSubsegment.addException(e);
+            AWSXRay.getCurrentSubsegment().addException(e);
             return response.withBody(e.getMessage()).withStatusCode(406);
-        } finally {
-            AWSXRay.endSubsegment();
+        }
+    }
+
+    private void cachePutDocument(String key, Document doc) {
+        try {
+            DiskLruCache.Editor editor = cache.edit(key);
+            editor.set(0, doc.toXml());
+            editor.commit();
+        } catch (IOException e) {
+            logger.warn(e);
+            AWSXRay.getCurrentSubsegment().addException(e);
         }
     }
 
@@ -113,28 +128,24 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             final DiskLruCache.Snapshot snapshot = cache.get(key);
             if (snapshot == null) {
                 final Document doc = processor.process();
-                AWSXRay.createSubsegment("Cache Edit", (subsegment)-> {
-                    try {
-                        DiskLruCache.Editor editor = cache.edit(key);
-                        editor.set(0, doc.toXml());
-                        editor.commit();
-                    } catch (IOException e) {
-                        subsegment.addException(e);
-                        logger.warn(e);
-                    }
-                });
+                AWSXRay.createSubsegment("Cache Edit", () -> cachePutDocument(key, doc));
                 return doc;
             } else {
+                AWSXRay.beginSubsegment("Cache Read");
                 try {
                     return Utils.xmlToDocument(new InputStreamReader(snapshot.getInputStream(0)));
                 } catch (ResourceInstantiationException | XMLStreamException e) {
                     logger.warn(e);
+                    AWSXRay.getCurrentSubsegment().addException(e);
                     cache.remove(key);
                     return processor.process();
+                } finally {
+                    AWSXRay.endSubsegment();
                 }
             }
         } catch (IOException e) {
             logger.warn(e);
+            AWSXRay.getCurrentSubsegment().addException(e);
             return processor.process();
         }
     }
@@ -160,15 +171,20 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         // Take *all* annotation types.
         final AnnotationSet defaultAnnots = doc.getAnnotations();
         final HashSet<String> annotationTypes = new HashSet<>();
-        for (Annotation annotation: defaultAnnots.inDocumentOrder()) {
+        for (Annotation annotation : defaultAnnots.inDocumentOrder()) {
             annotationTypes.add(annotation.getType());
         }
         exportOptions.put("annotationTypes", annotationTypes);
 
-        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         if (responseType.equals("application/json")) {
+            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
             gateJsonExporter.setAnnotationTypes(doc.getAnnotationSetNames());
-            gateJsonExporter.export(doc, baos, exportOptions);
+            try {
+                gateJsonExporter.export(doc, baos, exportOptions);
+            } catch (IOException e) {
+                AWSXRay.getCurrentSubsegment().addException(e);
+                throw e;
+            }
             return baos.toString();
         } else {
             return doc.toXml();
