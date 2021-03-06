@@ -13,6 +13,7 @@ import org.junit.Test;
 
 import java.io.StringReader;
 import java.util.HashMap;
+import java.util.Random;
 
 import static com.github.stefanbirkner.systemlambda.SystemLambda.withEnvironmentVariable;
 import static org.junit.Assert.assertEquals;
@@ -96,13 +97,14 @@ public class AppTest {
 
     @Test
     public void testCache() {
+        input.withBody(input.getBody() + new Random().nextInt());
         // Invoke the App
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
         assertEquals(result.getStatusCode().intValue(), 200);
-        assertEquals(result.getHeaders().get("x-zae-gate-cache"), "MISS");
+        assertEquals("MISS", result.getHeaders().get("x-zae-gate-cache"));
 
         final APIGatewayProxyResponseEvent cachedResult = app.handleRequest(input, context);
         assertEquals(cachedResult.getStatusCode().intValue(), 200);
-        assertEquals(cachedResult.getHeaders().get("x-zae-gate-cache"), "HIT");
+        assertEquals("HIT", cachedResult.getHeaders().get("x-zae-gate-cache"));
     }
 }
