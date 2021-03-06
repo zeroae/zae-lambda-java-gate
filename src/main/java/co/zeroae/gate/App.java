@@ -9,7 +9,6 @@ import com.amazonaws.xray.AWSXRay;
 import com.amazonaws.xray.entities.Subsegment;
 
 import gate.*;
-import gate.corpora.export.GATEJsonExporter;
 import gate.creole.ResourceInstantiationException;
 import gate.util.GateException;
 import gate.util.persistence.PersistenceManager;
@@ -25,9 +24,7 @@ import java.io.*;
 import java.net.URL;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * This class implements a GATE application using AWS Lambda.
@@ -53,18 +50,26 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private static final Logger logger = LogManager.getLogger(App.class);
     private static final CorpusController application = AWSXRay.createSubsegment(
             "Gate Load", App::loadApplication);
-    private static final GATEJsonExporter gateJsonExporter = new GATEJsonExporter();
+    private static final Map<String, DocumentExporter> exporters = AWSXRay.createSubsegment(
+            "Gate Load Exporters", Utils::loadExporters
+    );
 
     private static final DiskLruCache cache = AWSXRay.createSubsegment(
             "Cache Init", App::initializeCache);
 
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, final Context context) {
-        final String responseType = input.getHeaders().getOrDefault("Accept", "application/xml");
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                 .withHeaders(new HashMap<>());
-        response.getHeaders().put("Content-Type", "text/plain");
 
         try {
+            final String responseType = input.getHeaders().get("Accept");
+            final DocumentExporter exporter = exporters.get(responseType);
+            if (exporter == null) {
+                throw new IOException("Unsupported response content type.");
+            } else {
+                response.getHeaders().put("Content-Type", responseType);
+            }
+
             final String bodyDigest = AWSXRay.createSubsegment(
                     "Message Digest", (subsegment) -> {
                         String rv = computeMessageDigest(input.getBody());
@@ -95,7 +100,6 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             AWSXRay.beginSubsegment("Gate Export");
             AWSXRay.getCurrentSubsegment().putMetadata("Content-Type", responseType);
             try {
-                response.getHeaders().put("Content-Type", responseType);
                 return response.withBody(export(doc, responseType)).withStatusCode(200);
             } finally {
                 Factory.deleteResource(doc);
@@ -103,11 +107,13 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             }
         } catch (GateException e) {
             logger.error(e);
-            AWSXRay.getCurrentSubsegment().addException(e);
+            AWSXRay.getCurrentSegment().addException(e);
+            response.getHeaders().put("Content-Type", "text/plain");
             return response.withBody(e.getMessage()).withStatusCode(400);
         } catch (IOException e) {
             logger.error(e);
-            AWSXRay.getCurrentSubsegment().addException(e);
+            AWSXRay.getCurrentSegment().addException(e);
+            response.getHeaders().put("Content-Type", "text/plain");
             return response.withBody(e.getMessage()).withStatusCode(406);
         }
     }
@@ -123,7 +129,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         }
     }
 
-    private Document cacheComputeIfNull(String key, TextProcessor processor) throws GateException {
+    private Document cacheComputeIfNull(String key, Utils.TextProcessor processor) throws GateException {
         try {
             final DiskLruCache.Snapshot snapshot = cache.get(key);
             if (snapshot == null) {
@@ -176,11 +182,11 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         }
         exportOptions.put("annotationTypes", annotationTypes);
 
-        if (responseType.equals("application/json")) {
+        final DocumentExporter exporter = exporters.get(responseType);
+        if (exporter != null) {
             final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            gateJsonExporter.setAnnotationTypes(doc.getAnnotationSetNames());
             try {
-                gateJsonExporter.export(doc, baos, exportOptions);
+                exporter.export(doc, baos, exportOptions);
             } catch (IOException e) {
                 AWSXRay.getCurrentSubsegment().addException(e);
                 throw e;
@@ -223,7 +229,4 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         }
     }
 
-    private interface TextProcessor {
-        Document process() throws GateException;
-    }
 }

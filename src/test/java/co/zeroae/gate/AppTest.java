@@ -35,9 +35,12 @@ public class AppTest {
     public void setUp() {
         AWSXRay.beginSegment("Test");
         input_headers = new HashMap<>();
+        input_headers.put("Content-Type", "text/plain");
+        input_headers.put("Accept", "application/gate+xml");
         input = new APIGatewayProxyRequestEvent()
                 .withHttpMethod("POST")
-                .withHeaders(input_headers);
+                .withHeaders(input_headers)
+                .withBody("This is the default test message. I am an APIGatewayProxyRequestEvent and I love Wanda Vision.");
     }
 
     @After
@@ -49,52 +52,41 @@ public class AppTest {
 
     @Test
     public void successfulResponse() {
-        // Create the Input
-        input_headers.put("Content-Type", "text/plain");
-        input.withBody("This is a test. My name is LambdaTestFunction, and I just watched the T.V. show Wanda Vision.");
-
         // Invoke the App
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
-
         // Assert Results
         assertEquals(result.getStatusCode().intValue(), 200);
     }
 
     @Test
     public void testGateXMLToDocument() throws Exception {
-        input_headers.put("Content-Type", "text/plain");
-        final String content = "Today is Monday.";
-        input.withBody(content);
-
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
 
-        assertEquals(result.getHeaders().get("Content-Type"), "application/xml");
+        assertEquals(result.getHeaders().get("Content-Type"), "application/gate+xml");
         final String resultBody = result.getBody();
         assertNotNull(resultBody);
 
         Document doc = Utils.xmlToDocument(new StringReader(resultBody));
-        assertEquals(doc.getContent().toString(), content);
+        assertEquals(doc.getContent().toString(), input.getBody());
     }
 
     @Test
     public void testMissingContentType() {
-        input_headers.clear();
-        input.withBody("I am still valid text...");
+        input_headers.remove("Content-Type", "text/plain");
         final TestContext context = new TestContext();
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
         assertEquals(result.getStatusCode().intValue(), 200);
     }
 
     @Test
-    public void testApplicationJsonResponse() throws Exception {
-        input_headers.put("Accept", "application/json");
-        input.withBody("Today is Monday.");
+    public void testGateJSONResponse() throws Exception {
+        input_headers.put("Accept", "application/gate+json");
 
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
         assertEquals(result.getStatusCode().intValue(), 200);
 
-        // Ensure we get back application/json back
-        assertEquals(result.getHeaders().get("Content-Type"), "application/json");
+        // Ensure we get back application/gate+json back
+        assertEquals(result.getHeaders().get("Content-Type"), "application/gate+json");
         final JsonFactory factory = new JsonFactory();
         final JsonParser parser = factory.createParser(result.getBody());
         while (!parser.isClosed()) {
@@ -104,10 +96,6 @@ public class AppTest {
 
     @Test
     public void testCache() {
-        // Create the Input
-        input_headers.put("Content-Type", "text/plain");
-        input.withBody("This is a test. My name is LambdaTestFunction, and I just watched the T.V. show Wanda Vision.");
-
         // Invoke the App
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
         assertEquals(result.getStatusCode().intValue(), 200);
