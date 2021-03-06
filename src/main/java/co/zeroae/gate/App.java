@@ -51,7 +51,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private static final CorpusController application = AWSXRay.createSubsegment(
             "Gate Load", App::loadApplication);
     private static final Map<String, DocumentExporter> exporters = AWSXRay.createSubsegment(
-            "Gate Load Exporters", Utils::loadExporters
+            "Gate Exporters", Utils::loadExporters
     );
 
     private static final DiskLruCache cache = AWSXRay.createSubsegment(
