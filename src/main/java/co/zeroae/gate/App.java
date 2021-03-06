@@ -100,7 +100,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             AWSXRay.beginSubsegment("Gate Export");
             AWSXRay.getCurrentSubsegment().putMetadata("Content-Type", responseType);
             try {
-                return response.withBody(export(doc, responseType)).withStatusCode(200);
+                return response.withBody(export(doc, exporter)).withStatusCode(200);
             } finally {
                 Factory.deleteResource(doc);
                 AWSXRay.endSubsegment();
@@ -169,9 +169,9 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
     /**
      * @param doc an instance of gate.Document
-     * @param responseType One of the supported response types
+     * @param exporter The document exporter
      */
-    private String export(Document doc, String responseType) throws IOException {
+    private String export(Document doc, DocumentExporter exporter) throws IOException {
         final FeatureMap exportOptions = Factory.newFeatureMap();
 
         // Take *all* annotation types.
@@ -182,19 +182,14 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         }
         exportOptions.put("annotationTypes", annotationTypes);
 
-        final DocumentExporter exporter = exporters.get(responseType);
-        if (exporter != null) {
-            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            try {
-                exporter.export(doc, baos, exportOptions);
-            } catch (IOException e) {
-                AWSXRay.getCurrentSubsegment().addException(e);
-                throw e;
-            }
-            return baos.toString();
-        } else {
-            return doc.toXml();
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try {
+            exporter.export(doc, baos, exportOptions);
+        } catch (IOException e) {
+            AWSXRay.getCurrentSubsegment().addException(e);
+            throw e;
         }
+        return baos.toString();
     }
 
     private static CorpusController loadApplication() {
