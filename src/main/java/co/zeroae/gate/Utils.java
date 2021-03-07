@@ -86,6 +86,7 @@ public class Utils {
         final Map<String, DocumentExporter> rv = new HashMap<>();
         rv.put("application/gate+xml", gateXMLExporter);
         rv.put("application/gate+json", gateJsonExporter);
+        rv.put("application/json", gateJsonExporter);
         rv.put("application/fastinfoset", fastInfosetExporter);
         return Collections.unmodifiableMap(rv);
     }

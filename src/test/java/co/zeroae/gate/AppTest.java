@@ -81,17 +81,19 @@ public class AppTest {
 
     @Test
     public void testGateJSONResponse() throws Exception {
-        input_headers.put("Accept", "application/gate+json");
+        for (String responseType: new String[]{"application/gate+json", "application/json"}) {
+            input_headers.put("Accept", responseType);
 
-        final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
-        assertEquals(200, result.getStatusCode().intValue());
+            final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
+            assertEquals(200, result.getStatusCode().intValue());
 
-        // Ensure we get back application/gate+json back
-        assertEquals("application/gate+json", result.getHeaders().get("Content-Type"));
-        final JsonFactory factory = new JsonFactory();
-        final JsonParser parser = factory.createParser(result.getBody());
-        while (!parser.isClosed()) {
-            parser.nextToken();
+            // Ensure we get back application/gate+json back
+            assertEquals(responseType, result.getHeaders().get("Content-Type"));
+            final JsonFactory factory = new JsonFactory();
+            final JsonParser parser = factory.createParser(result.getBody());
+            while (!parser.isClosed()) {
+                parser.nextToken();
+            }
         }
     }
 
