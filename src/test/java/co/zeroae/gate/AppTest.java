@@ -96,6 +96,17 @@ public class AppTest {
     }
 
     @Test
+    public void testFastInfosetResponse() {
+        input_headers.put("Accept", "application/fastinfoset");
+
+        final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
+        assertEquals(200, result.getStatusCode().intValue());
+
+        // Ensure we get back application/fastinfoset back
+        assertEquals("application/fastinfoset", result.getHeaders().get("Content-Type"));
+    }
+
+    @Test
     public void testCache() {
         input.withBody(input.getBody() + new Random().nextInt());
         // Invoke the App
