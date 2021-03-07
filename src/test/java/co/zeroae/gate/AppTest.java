@@ -2,22 +2,24 @@ package co.zeroae.gate;
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import com.amazonaws.util.IOUtils;
 import com.amazonaws.xray.AWSXRay;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import gate.Document;
+import gate.DocumentFormat;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.io.StringReader;
 import java.util.HashMap;
 import java.util.Random;
 
 import static com.github.stefanbirkner.systemlambda.SystemLambda.withEnvironmentVariable;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.*;
 
 public class AppTest {
 
@@ -106,5 +108,53 @@ public class AppTest {
         final APIGatewayProxyResponseEvent cachedResult = app.handleRequest(input, context);
         assertEquals(cachedResult.getStatusCode().intValue(), 200);
         assertEquals("HIT", cachedResult.getHeaders().get("x-zae-gate-cache"));
+    }
+
+    @Test
+    public void testInputTypes() {
+        String[] types = {
+                "application/fastinfoset",
+                "text/html",
+                "text/json",
+                "text/plain",
+                "text/xml",
+                "text/x-cochrane",
+                "text/x-mediawiki",
+                "text/x-json-datasift",
+                "text/x-json-twitter",
+        };
+        for (String type: types) assertNotNull(DocumentFormat.getMimeTypeForString(type));
+    }
+
+    @Test
+    public void testGateJsonInput() {
+        input.withBody("{\"text\":\"" + input.getBody() + "\"}");
+        input.getHeaders().put("Content-Type", "text/json");
+
+        final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
+        assertEquals(result.getStatusCode().intValue(), 200);
+    }
+
+    @Test
+    public void tesTweetJsonInput() {
+        input.withBody("{\"full_text\":\"" + input.getBody() + "\"}");
+        input.getHeaders().put("Content-Type", "text/x-json-twitter");
+        input.getHeaders().put("Accept", "application/gate+json");
+
+        final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
+        assertEquals(result.getStatusCode().intValue(), 200);
+        assertFalse(result.getBody().contains("full_text"));
+    }
+
+    @Test
+    public void testMediaWikiInput() throws IOException {
+        final String body = IOUtils.toString(getClass().getResourceAsStream("mediawiki.txt"));
+        input.withBody(body);
+        input.getHeaders().put("Content-Type", "text/x-mediawiki");
+        input.getHeaders().put("Accept", "application/gate+json");
+
+        final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
+        assertEquals(result.getStatusCode().intValue(), 200);
+        assertFalse(result.getBody().contains("{{Short Description|"));
     }
 }

@@ -36,6 +36,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         AWSXRay.createSubsegment("Gate Init", () -> {
             try {
                 Gate.init();
+                Utils.loadDocumentFormats();
             } catch (GateException e) {
                 throw new RuntimeException(e);
             }
@@ -62,6 +63,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                 .withHeaders(new HashMap<>());
 
         try {
+            final String bodyType = input.getHeaders().get("Content-Type");
             final String responseType = input.getHeaders().get("Accept");
             final DocumentExporter exporter = exporters.get(responseType);
             if (exporter == null) {
@@ -81,11 +83,20 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                     bodyDigest,
                     () -> {
                         final Subsegment subsegment = AWSXRay.beginSubsegment("Gate Execute");
-                        final Document rv = Factory.newDocument(input.getBody());
                         final Corpus corpus = application.getCorpus();
+                        final FeatureMap featureMap = Factory.newFeatureMap();
+
+                        featureMap.put(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME, input.getBody());
+                        if (bodyType != null)
+                            featureMap.put(Document.DOCUMENT_MIME_TYPE_PARAMETER_NAME, bodyType);
+
+                        final Document rv = (Document)Factory.createResource(
+                                "gate.corpora.DocumentImpl",
+                                featureMap
+                        );
                         response.getHeaders().put("x-zae-gate-cache", "MISS");
-                        corpus.add(rv);
                         try {
+                            corpus.add(rv);
                             application.execute();
                         } catch (GateException e) {
                             subsegment.addException(e);

@@ -1,10 +1,10 @@
 package co.zeroae.gate;
 
-import gate.Document;
-import gate.DocumentExporter;
-import gate.Factory;
+import gate.*;
+import gate.corpora.*;
 import gate.corpora.export.GATEJsonExporter;
 import gate.corpora.export.GateXMLExporter;
+import gate.creole.Plugin;
 import gate.creole.ResourceInstantiationException;
 import gate.util.GateException;
 
@@ -12,9 +12,8 @@ import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import java.io.Reader;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.net.MalformedURLException;
+import java.util.*;
 
 public class Utils {
 
@@ -41,6 +40,41 @@ public class Utils {
     }
 
     /**
+     * The Plugin.Component class has a bug when the baseUrl fails to resolve uniquely.
+     * This fixes the bug by assigning the Class' hashCode instead of the Plugin level one.
+     */
+    private static class UniqueHashComponent extends Plugin.Component {
+        final private int hashCode;
+        public UniqueHashComponent(Class<? extends Resource> resourceClass) throws MalformedURLException {
+            super(resourceClass);
+            hashCode = resourceClass.hashCode();
+        }
+
+        @Override
+        public int hashCode() {
+            return hashCode;
+        }
+    }
+
+    static void loadDocumentFormats() {
+        try {
+            final Set<Class<? extends gate.Resource>> classes = new HashSet<>();
+            classes.add(CochraneTextDocumentFormat.class);
+            classes.add(DataSiftFormat.class);
+            classes.add(FastInfosetDocumentFormat.class);
+            classes.add(GATEJSONFormat.class);
+            classes.add(JSONTweetFormat.class);
+            classes.add(MediaWikiDocumentFormat.class);
+            classes.add(PubmedTextDocumentFormat.class);
+            for (Class<? extends gate.Resource> clazz: classes) {
+                Gate.getCreoleRegister().registerPlugin(new UniqueHashComponent(clazz));
+            }
+        } catch (GateException | MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
      * Loads all exporters that we support
      * @return an UnmodifiableMap of the supported exporters.
      */
@@ -52,6 +86,4 @@ public class Utils {
         rv.put("application/gate+json", gateJsonExporter);
         return Collections.unmodifiableMap(rv);
     }
-
-
 }
