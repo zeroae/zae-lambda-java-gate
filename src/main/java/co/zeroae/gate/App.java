@@ -33,7 +33,7 @@ import java.util.*;
  */
 public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
     static {
-        AWSXRay.createSubsegment("Gate Init", () -> {
+        AWSXRay.createSegment("Gate Init", () -> {
             try {
                 Gate.init();
                 Utils.loadDocumentFormats();
@@ -49,19 +49,18 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private static final double CACHE_DIR_USAGE = .9;
 
     private static final Logger logger = LogManager.getLogger(App.class);
-    private static final CorpusController application = AWSXRay.createSubsegment(
+    private static final CorpusController application = AWSXRay.createSegment(
             "Gate Load", App::loadApplication);
-    private static final Map<String, DocumentExporter> exporters = AWSXRay.createSubsegment(
+    private static final Map<String, DocumentExporter> exporters = AWSXRay.createSegment(
             "Gate Exporters", Utils::loadExporters
     );
 
-    private static final DiskLruCache cache = AWSXRay.createSubsegment(
+    private static final DiskLruCache cache = AWSXRay.createSegment(
             "Cache Init", App::initializeCache);
 
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, final Context context) {
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                 .withHeaders(new HashMap<>());
-
         try {
             final String responseType = input.getHeaders().get("Accept");
             final DocumentExporter exporter = exporters.get(responseType);
