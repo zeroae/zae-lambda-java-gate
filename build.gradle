@@ -14,7 +14,6 @@ repositories {
 dependencies {
     implementation 'uk.ac.gate:gate-core:8.6.1'
     implementation 'uk.ac.gate.plugins:format-json:8.7'
-
     implementation 'uk.ac.gate.plugins:format-twitter:8.7'
     implementation 'uk.ac.gate.plugins:format-mediawiki:8.5'
     implementation 'uk.ac.gate.plugins:format-pubmed:8.5'
