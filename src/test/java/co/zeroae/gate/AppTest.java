@@ -58,19 +58,19 @@ public class AppTest {
         // Invoke the App
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
         // Assert Results
-        assertEquals(result.getStatusCode().intValue(), 200);
+        assertEquals(200, result.getStatusCode().intValue());
     }
 
     @Test
     public void testGateXMLToDocument() throws Exception {
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
 
-        assertEquals(result.getHeaders().get("Content-Type"), "application/gate+xml");
+        assertEquals("application/gate+xml", result.getHeaders().get("Content-Type"));
         final String resultBody = result.getBody();
         assertNotNull(resultBody);
 
         Document doc = Utils.xmlToDocument(new StringReader(resultBody));
-        assertEquals(doc.getContent().toString(), input.getBody());
+        assertEquals(input.getBody(), doc.getContent().toString());
     }
 
     @Test
@@ -78,7 +78,7 @@ public class AppTest {
         input_headers.remove("Content-Type", "text/plain");
         final TestContext context = new TestContext();
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
-        assertEquals(result.getStatusCode().intValue(), 200);
+        assertEquals(200, result.getStatusCode().intValue());
     }
 
     @Test
@@ -86,10 +86,10 @@ public class AppTest {
         input_headers.put("Accept", "application/gate+json");
 
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
-        assertEquals(result.getStatusCode().intValue(), 200);
+        assertEquals(200, result.getStatusCode().intValue());
 
         // Ensure we get back application/gate+json back
-        assertEquals(result.getHeaders().get("Content-Type"), "application/gate+json");
+        assertEquals("application/gate+json", result.getHeaders().get("Content-Type"));
         final JsonFactory factory = new JsonFactory();
         final JsonParser parser = factory.createParser(result.getBody());
         while (!parser.isClosed()) {
@@ -102,11 +102,11 @@ public class AppTest {
         input.withBody(input.getBody() + new Random().nextInt());
         // Invoke the App
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
-        assertEquals(result.getStatusCode().intValue(), 200);
+        assertEquals(200, result.getStatusCode().intValue());
         assertEquals("MISS", result.getHeaders().get("x-zae-gate-cache"));
 
         final APIGatewayProxyResponseEvent cachedResult = app.handleRequest(input, context);
-        assertEquals(cachedResult.getStatusCode().intValue(), 200);
+        assertEquals(200, cachedResult.getStatusCode().intValue());
         assertEquals("HIT", cachedResult.getHeaders().get("x-zae-gate-cache"));
     }
 
@@ -132,7 +132,7 @@ public class AppTest {
         input.getHeaders().put("Content-Type", "text/json");
 
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
-        assertEquals(result.getStatusCode().intValue(), 200);
+        assertEquals(200,result.getStatusCode().intValue());
     }
 
     @Test
@@ -142,7 +142,7 @@ public class AppTest {
         input.getHeaders().put("Accept", "application/gate+json");
 
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
-        assertEquals(result.getStatusCode().intValue(), 200);
+        assertEquals(200, result.getStatusCode().intValue());
         assertFalse(result.getBody().contains("full_text"));
     }
 
@@ -154,7 +154,28 @@ public class AppTest {
         input.getHeaders().put("Accept", "application/gate+json");
 
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
-        assertEquals(result.getStatusCode().intValue(), 200);
+        assertEquals(200, result.getStatusCode().intValue());
         assertFalse(result.getBody().contains("{{Short Description|"));
+    }
+
+    @Test
+    public void testCacheCoherenceWithContentType() {
+        final int cacheBust= new Random().nextInt();
+        final String gateJsonBody =  "{\"text\":\"" + input.getBody() + cacheBust + "\"}";
+
+        // We are going to make a "mistake" and send gateJsonBody as text/x-json-twitter.
+        input.getHeaders().put("Accept", "application/gate+json");
+        input.getHeaders().put("Content-Type", "text/x-json-twitter");
+        input.withBody(gateJsonBody);
+
+        final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
+        assertEquals("MISS", result.getHeaders().get("x-zae-gate-cache"));
+
+        // Now we fix the mistake, we must *miss* o.w. we are getting the *wrong* entities!
+        input.getHeaders().put("Content-Type", "text/json");
+
+        final APIGatewayProxyResponseEvent wikiResult = app.handleRequest(input, context);
+        assertNotEquals(result.getBody(), wikiResult.getBody());
+        assertEquals("MISS", wikiResult.getHeaders().get("x-zae-gate-cache"));
     }
 }
