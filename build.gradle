@@ -5,7 +5,8 @@ plugins {
 }
 
 group 'co.zeroae'
-version gitVersion
+//noinspection GroovyAssignabilityCheck
+version gitVersion()
 
 repositories {
     mavenCentral()
