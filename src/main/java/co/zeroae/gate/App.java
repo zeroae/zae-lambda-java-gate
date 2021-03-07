@@ -63,7 +63,6 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                 .withHeaders(new HashMap<>());
 
         try {
-            final String bodyType = input.getHeaders().get("Content-Type");
             final String responseType = input.getHeaders().get("Accept");
             final DocumentExporter exporter = exporters.get(responseType);
             if (exporter == null) {
@@ -72,24 +71,23 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                 response.getHeaders().put("Content-Type", responseType);
             }
 
-            final String bodyDigest = AWSXRay.createSubsegment(
-                    "Message Digest", (subsegment) -> {
-                        String rv = computeMessageDigest(input.getBody());
+            final String bodyType = input.getHeaders().get("Content-Type");
+            final FeatureMap featureMap = Factory.newFeatureMap();
+            featureMap.put(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME, input.getBody());
+            if (bodyType != null)
+                featureMap.put(Document.DOCUMENT_MIME_TYPE_PARAMETER_NAME, bodyType);
+            final String inputDigest = AWSXRay.createSubsegment("Message Digest",
+                    (subsegment) -> {
+                        String rv = computeMessageDigest(featureMap);
                         subsegment.putMetadata("SHA256", rv);
                         return rv;
                     });
             response.getHeaders().put("x-zae-gate-cache", "HIT");
             final Document doc = cacheComputeIfNull(
-                    bodyDigest,
+                    inputDigest,
                     () -> {
                         final Subsegment subsegment = AWSXRay.beginSubsegment("Gate Execute");
                         final Corpus corpus = application.getCorpus();
-                        final FeatureMap featureMap = Factory.newFeatureMap();
-
-                        featureMap.put(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME, input.getBody());
-                        if (bodyType != null)
-                            featureMap.put(Document.DOCUMENT_MIME_TYPE_PARAMETER_NAME, bodyType);
-
                         final Document rv = (Document)Factory.createResource(
                                 "gate.corpora.DocumentImpl",
                                 featureMap
@@ -167,11 +165,16 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         }
     }
 
-    private String computeMessageDigest(String text) {
+    private String computeMessageDigest(FeatureMap featureMap) {
         final String sha256;
         try {
             final MessageDigest md = MessageDigest.getInstance("SHA-256");
-            sha256 = Hex.encode(md.digest(text.getBytes()));
+            final String bodyContent = (String)featureMap.get(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME);
+            final String mimeType = (String)featureMap.get(Document.DOCUMENT_MIME_TYPE_PARAMETER_NAME);
+            md.update(bodyContent.getBytes());
+            if (mimeType != null)
+                md.update(mimeType.getBytes());
+            sha256 = Hex.encode(md.digest());
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
