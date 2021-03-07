@@ -5,6 +5,7 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 
+import com.amazonaws.util.Base64;
 import com.amazonaws.xray.AWSXRay;
 import com.amazonaws.xray.entities.Subsegment;
 
@@ -108,7 +109,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             AWSXRay.beginSubsegment("Gate Export");
             AWSXRay.getCurrentSubsegment().putMetadata("Content-Type", responseType);
             try {
-                return response.withBody(export(doc, exporter)).withStatusCode(200);
+                return export(exporter, doc, response).withStatusCode(200);
             } finally {
                 Factory.deleteResource(doc);
                 AWSXRay.endSubsegment();
@@ -181,10 +182,16 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     }
 
     /**
-     * @param doc an instance of gate.Document
      * @param exporter The document exporter
+     * @param doc an instance of gate.Document
+     * @param response The response where we put the exported Document as body
+     * @return the modified response
      */
-    private String export(Document doc, DocumentExporter exporter) throws IOException {
+    private APIGatewayProxyResponseEvent export(
+            DocumentExporter exporter,
+            Document doc,
+            APIGatewayProxyResponseEvent response
+    ) throws IOException {
         final FeatureMap exportOptions = Factory.newFeatureMap();
 
         // Take *all* annotation types.
@@ -202,7 +209,13 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             AWSXRay.getCurrentSubsegment().addException(e);
             throw e;
         }
-        return baos.toString();
+        // If we add a second type, then we should create a "Set" at the Utils level and test against it.
+        if (exporter.getMimeType().equals("application/fastinfoset")) {
+            response.withIsBase64Encoded(true).setBody(Base64.encodeAsString(baos.toByteArray()));
+        } else {
+            response.setBody(baos.toString());
+        }
+        return response;
     }
 
     private static CorpusController loadApplication() {

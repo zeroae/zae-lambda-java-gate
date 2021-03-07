@@ -106,6 +106,7 @@ public class AppTest {
 
         // Ensure we get back application/fastinfoset back
         assertEquals("application/fastinfoset", result.getHeaders().get("Content-Type"));
+        assertTrue(result.getIsBase64Encoded());
     }
 
     @Test
