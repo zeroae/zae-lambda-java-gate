@@ -175,7 +175,6 @@ public class AppTest {
         input.getHeaders().put("Content-Type", "text/json");
 
         final APIGatewayProxyResponseEvent wikiResult = app.handleRequest(input, context);
-        assertNotEquals(result.getBody(), wikiResult.getBody());
         assertEquals("MISS", wikiResult.getHeaders().get("x-zae-gate-cache"));
     }
 }
