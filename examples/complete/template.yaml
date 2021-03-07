@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  zeroae.gate
+
+  A GATE Application served over lambda.
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 120
+
+Resources:
+  LambdaGateApp:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: gate-app
+      Handler: co.zeroae.gate.App::handleRequest
+      Runtime: java8.al2
+      MemorySize: 1024
+      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
+        Variables:
+          GATE_APP_NAME: application
+
+      Events:
+        ApiGatewayGateApp:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /execute
+            Method: post
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  LambdaGateAppApi:
+    Description: "API Gateway endpoint URL for Prod stage for Gate Application"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/execute/"
+  LambdaGateApp:
+    Description: "Gate Application ARN"
+    Value: !GetAtt LambdaGateApp.Arn
+  LambdaGateAppIamRole:
+    Description: "Implicit IAM Role created for Gate Application"
+    Value: !GetAtt LambdaGateAppRole.Arn
