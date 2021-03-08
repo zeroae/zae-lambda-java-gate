@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.UUID;
 
 import static com.github.stefanbirkner.systemlambda.SystemLambda.withEnvironmentVariable;
 import static org.junit.Assert.*;
@@ -40,9 +41,12 @@ public class AppTest {
         input_headers.put("Content-Type", "text/plain");
         input_headers.put("Accept", "application/gate+xml");
         input = new APIGatewayProxyRequestEvent()
+                .withRequestContext(new APIGatewayProxyRequestEvent.ProxyRequestContext().withRequestId(UUID.randomUUID().toString()))
                 .withHttpMethod("POST")
                 .withHeaders(input_headers)
-                .withBody("This is the default test message. I am an APIGatewayProxyRequestEvent and I love Wanda Vision.");
+                .withBody("This is the default test message. I am an APIGatewayProxyRequestEvent and I love Wanda Vision.")
+                .withIsBase64Encoded(false);
+
     }
 
     @After

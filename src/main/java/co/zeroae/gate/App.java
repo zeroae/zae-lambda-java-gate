@@ -19,13 +19,11 @@ import com.jakewharton.disklrucache.DiskLruCache;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
-import org.codehaus.httpcache4j.util.Hex;
 
 import javax.xml.stream.XMLStreamException;
 import java.io.*;
 import java.net.URL;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.net.URLStreamHandler;
 import java.util.*;
 
 /**
@@ -60,6 +58,8 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private static final DiskLruCache cache = AWSXRay.createSegment(
             "Cache Init", App::initializeCache);
 
+    private static final URLStreamHandler b64Handler = new Handler();
+
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, final Context context) {
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                 .withHeaders(new HashMap<>());
@@ -76,23 +76,28 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             }
 
             final FeatureMap featureMap = Factory.newFeatureMap();
-            final String bodyType = input.getHeaders().get("Content-Type");
-            if (bodyType != null)
-                featureMap.put(Document.DOCUMENT_MIME_TYPE_PARAMETER_NAME, bodyType);
-            if (input.getIsBase64Encoded() != null && input.getIsBase64Encoded())
+            final String bodyType = input.getHeaders().getOrDefault("Content-Type", "text/plain");
+            final String inputDigest = AWSXRay.createSubsegment("Message Digest",() -> {
+                String rv = Utils.computeMessageDigest(bodyType, input.getBody());
+                AWSXRay.getCurrentSubsegment().putMetadata("SHA256", rv);
+                return rv;
+            });
+
+            featureMap.put(Document.DOCUMENT_MIME_TYPE_PARAMETER_NAME, bodyType);
+            if (!input.getIsBase64Encoded())
+                featureMap.put(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME, input.getBody());
+            else {
+                // GATE FastInfosetFormat can not handle binary in the string content.
+                Handler.paths.put(inputDigest, input.getBody());
                 featureMap.put(
                         Document.DOCUMENT_URL_PARAMETER_NAME,
-                        new URL("b64", "localhost", 64, input.getBody(),
-                                new Handler()));
-            else
-                featureMap.put(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME, input.getBody());
+                        new URL("b64",
+                                bodyType != null ? Base64.encodeAsString(bodyType.getBytes()) : null,
+                                64,
+                                inputDigest,
+                                b64Handler));
+            }
 
-            final String inputDigest = AWSXRay.createSubsegment("Message Digest",
-                    (subsegment) -> {
-                        String rv = computeMessageDigest(featureMap);
-                        subsegment.putMetadata("SHA256", rv);
-                        return rv;
-                    });
             response.getHeaders().put("x-zae-gate-cache", "HIT");
             final Document doc = cacheComputeIfNull(
                     inputDigest,
@@ -175,24 +180,6 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             logger.warn(e);
             AWSXRay.getCurrentSubsegment().addException(e);
             return processor.process();
-        }
-    }
-
-    private String computeMessageDigest(FeatureMap featureMap) {
-        try {
-            final MessageDigest md = MessageDigest.getInstance("SHA-256");
-            final String mimeType = (String)featureMap.get(Document.DOCUMENT_MIME_TYPE_PARAMETER_NAME);
-            final String bodyContent = (String)featureMap.get(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME);
-            final URL sourceUrl = (URL)featureMap.get(Document.DOCUMENT_URL_PARAMETER_NAME);
-            if (mimeType != null)
-                md.update(mimeType.getBytes());
-            if (bodyContent != null)
-                md.update(bodyContent.getBytes());
-            if (sourceUrl != null)
-                md.update(sourceUrl.toString().getBytes());
-            return Hex.encode(md.digest());
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
         }
     }
 

@@ -7,12 +7,15 @@ import gate.corpora.export.GateXMLExporter;
 import gate.creole.Plugin;
 import gate.creole.ResourceInstantiationException;
 import gate.util.GateException;
+import org.codehaus.httpcache4j.util.Hex;
 
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import java.io.Reader;
 import java.net.MalformedURLException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class Utils {
@@ -89,5 +92,20 @@ public class Utils {
         rv.put("application/json", gateJsonExporter);
         rv.put("application/fastinfoset", fastInfosetExporter);
         return Collections.unmodifiableMap(rv);
+    }
+
+    static String computeMessageDigest(String mimeType, String bodyContent) {
+        try {
+            final String rv;
+            final MessageDigest md = MessageDigest.getInstance("SHA-256");
+            if (mimeType != null)
+                md.update(mimeType.getBytes());
+            if (bodyContent != null)
+                md.update(bodyContent.getBytes());
+            rv = Hex.encode(md.digest());
+            return rv;
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
