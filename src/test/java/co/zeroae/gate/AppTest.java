@@ -100,7 +100,7 @@ public class AppTest {
 
     @Test
     public void testFastInfosetResponse() {
-        input_headers.put("Accept", "application/fastinfoset");
+        input_headers.put("Accept", "application/fastinfoset; includeText=no");
 
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
         assertEquals(200, result.getStatusCode().intValue());

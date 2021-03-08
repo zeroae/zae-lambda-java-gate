@@ -64,7 +64,10 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                 .withHeaders(new HashMap<>());
         try {
-            final String responseType = input.getHeaders().get("Accept");
+            final String responseType = input.getHeaders()
+                    .getOrDefault("Accept", "")
+                    .split(",")[0]
+                    .split(";")[0];
             final DocumentExporter exporter = exporters.get(responseType);
             if (exporter == null) {
                 throw new IOException("Unsupported response content type.");
