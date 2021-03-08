@@ -81,9 +81,13 @@ public class Utils {
     static Map<String, DocumentExporter> loadExporters() {
         final GateXMLExporter gateXMLExporter = new GateXMLExporter();
         final GATEJsonExporter gateJsonExporter = new GATEJsonExporter();
+        final FastInfosetExporter fastInfosetExporter = new FastInfosetExporter();
+
         final Map<String, DocumentExporter> rv = new HashMap<>();
         rv.put("application/gate+xml", gateXMLExporter);
         rv.put("application/gate+json", gateJsonExporter);
+        rv.put("application/json", gateJsonExporter);
+        rv.put("application/fastinfoset", fastInfosetExporter);
         return Collections.unmodifiableMap(rv);
     }
 }
