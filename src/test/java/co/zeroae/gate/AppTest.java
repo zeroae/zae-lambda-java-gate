@@ -2,6 +2,7 @@ package co.zeroae.gate;
 
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import com.amazonaws.util.Base64;
 import com.amazonaws.util.IOUtils;
 import com.amazonaws.xray.AWSXRay;
 import com.fasterxml.jackson.core.JsonFactory;
@@ -168,6 +169,22 @@ public class AppTest {
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
         assertEquals(200, result.getStatusCode().intValue());
         assertFalse(result.getBody().contains("{{Short Description|"));
+    }
+
+    @Test
+    public void testFastInfosetInput() throws IOException {
+        final byte[] body = IOUtils.toByteArray(getClass().getResourceAsStream("example.finf"));
+        input.withIsBase64Encoded(true)
+                .withBody(Base64.encodeAsString(body))
+                .getHeaders().put("Content-Type", "application/fastinfoset");
+
+        final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
+        assertEquals(200, result.getStatusCode().intValue());
+        assertEquals("MISS", result.getHeaders().get("x-zae-gate-cache"));
+
+        final APIGatewayProxyResponseEvent cachedResult = app.handleRequest(input, context);
+        assertEquals(200, cachedResult.getStatusCode().intValue());
+        assertEquals("HIT", cachedResult.getHeaders().get("x-zae-gate-cache"));
     }
 
     @Test

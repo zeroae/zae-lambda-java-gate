@@ -1,5 +1,6 @@
 package co.zeroae.gate;
 
+import co.zeroae.gate.b64.Handler;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
@@ -71,11 +72,18 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                 response.getHeaders().put("Content-Type", responseType);
             }
 
-            final String bodyType = input.getHeaders().get("Content-Type");
             final FeatureMap featureMap = Factory.newFeatureMap();
-            featureMap.put(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME, input.getBody());
+            final String bodyType = input.getHeaders().get("Content-Type");
             if (bodyType != null)
                 featureMap.put(Document.DOCUMENT_MIME_TYPE_PARAMETER_NAME, bodyType);
+            if (input.getIsBase64Encoded() != null && input.getIsBase64Encoded())
+                featureMap.put(
+                        Document.DOCUMENT_URL_PARAMETER_NAME,
+                        new URL("b64", "localhost", 64, input.getBody(),
+                                new Handler()));
+            else
+                featureMap.put(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME, input.getBody());
+
             final String inputDigest = AWSXRay.createSubsegment("Message Digest",
                     (subsegment) -> {
                         String rv = computeMessageDigest(featureMap);
@@ -116,12 +124,12 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             }
         } catch (GateException e) {
             logger.error(e);
-            AWSXRay.getCurrentSegment().addException(e);
+            AWSXRay.getCurrentSubsegmentOptional().ifPresent((segment -> segment.addException(e)));
             response.getHeaders().put("Content-Type", "text/plain");
             return response.withBody(e.getMessage()).withStatusCode(400);
         } catch (IOException e) {
             logger.error(e);
-            AWSXRay.getCurrentSegment().addException(e);
+            AWSXRay.getCurrentSubsegmentOptional().ifPresent((segment -> segment.addException(e)));
             response.getHeaders().put("Content-Type", "text/plain");
             return response.withBody(e.getMessage()).withStatusCode(406);
         }
@@ -166,19 +174,21 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     }
 
     private String computeMessageDigest(FeatureMap featureMap) {
-        final String sha256;
         try {
             final MessageDigest md = MessageDigest.getInstance("SHA-256");
-            final String bodyContent = (String)featureMap.get(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME);
             final String mimeType = (String)featureMap.get(Document.DOCUMENT_MIME_TYPE_PARAMETER_NAME);
-            md.update(bodyContent.getBytes());
+            final String bodyContent = (String)featureMap.get(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME);
+            final URL sourceUrl = (URL)featureMap.get(Document.DOCUMENT_URL_PARAMETER_NAME);
             if (mimeType != null)
                 md.update(mimeType.getBytes());
-            sha256 = Hex.encode(md.digest());
+            if (bodyContent != null)
+                md.update(bodyContent.getBytes());
+            if (sourceUrl != null)
+                md.update(sourceUrl.toString().getBytes());
+            return Hex.encode(md.digest());
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-        return sha256;
     }
 
     /**
