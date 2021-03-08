@@ -125,13 +125,15 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         } catch (GateException e) {
             logger.error(e);
             AWSXRay.getCurrentSubsegmentOptional().ifPresent((segment -> segment.addException(e)));
-            response.getHeaders().put("Content-Type", "text/plain");
-            return response.withBody(e.getMessage()).withStatusCode(400);
+            response.getHeaders().put("Content-Type", "application/json");
+            return response.withStatusCode(400).withBody(String.format(
+                    "{\"message\":\"%s\"}", e.getMessage()));
         } catch (IOException e) {
             logger.error(e);
             AWSXRay.getCurrentSubsegmentOptional().ifPresent((segment -> segment.addException(e)));
-            response.getHeaders().put("Content-Type", "text/plain");
-            return response.withBody(e.getMessage()).withStatusCode(406);
+            response.getHeaders().put("Content-Type", "application/json");
+            return response.withStatusCode(406).withBody(String.format(
+                    "{\"message\":\"%s\"}", e.getMessage()));
         }
     }
 
