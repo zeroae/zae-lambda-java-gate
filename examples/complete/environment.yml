@@ -1,0 +1,10 @@
+name: sam
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - aws-sam-cli
+  - awscli
+  - watchdog
+  - hub
+

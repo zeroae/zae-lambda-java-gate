@@ -25,10 +25,8 @@ public class AppTest {
 
     @BeforeClass
     public static void setUpClass() throws Exception {
-        AWSXRay.beginSegment("setUpClass");
         app = withEnvironmentVariable("GATE_APP_NAME", "annie")
                 .execute(App::new);
-        AWSXRay.endSegment();
     }
 
     private static App app = null;
