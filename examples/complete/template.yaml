@@ -24,15 +24,23 @@ Resources:
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
           GATE_APP_NAME: application
+          GATE_APP_COST_PER_REQUEST: 1
+          GATE_APP_DAILY_QUOTA: 10000
+          GATE_APP_DEFAULT_ANNOTATIONS: :Address, :Date, :Location, :Organization, :Person
+          GATE_APP_ADDITIONAL_ANNOTATIONS: :Money, :Percent, :Token, :SpaceToken, :Sentence
       Policies:
         - AWSXrayWriteOnlyAccess
-
       Events:
-        ApiGatewayGateApp:
+        Execute:
           Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
           Properties:
-            Path: /execute
+            Path: /annie
             Method: post
+        GetMetadata:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /annie/metadata
+            Method: get
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
@@ -40,7 +48,7 @@ Outputs:
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   LambdaGateAppApi:
     Description: "API Gateway endpoint URL for Prod stage for Gate Application"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/execute/"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/annie/"
   LambdaGateApp:
     Description: "Gate Application ARN"
     Value: !GetAtt LambdaGateApp.Arn

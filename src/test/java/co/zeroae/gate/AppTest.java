@@ -47,6 +47,7 @@ public class AppTest {
         input_headers.put("Accept", "application/gate+xml");
         input = new APIGatewayProxyRequestEvent()
                 .withRequestContext(new APIGatewayProxyRequestEvent.ProxyRequestContext().withRequestId(UUID.randomUUID().toString()))
+                .withPath("/test")
                 .withHttpMethod("POST")
                 .withHeaders(input_headers)
                 .withBody("This is the default test message. I am an APIGatewayProxyRequestEvent and I love Wanda Vision.")
@@ -60,6 +61,14 @@ public class AppTest {
     }
     private APIGatewayProxyRequestEvent input = null;
     private HashMap<String, String> input_headers = null;
+
+    @Test
+    public void testMetadata() {
+       input.withPath(input.getPath()+"/metadata");
+       final APIGatewayProxyResponseEvent result = app.handleMetadata(input, context);
+       assertEquals(200, result.getStatusCode().intValue());
+       assertTrue(result.getBody().contains("\"name\":\"test\""));
+    }
 
     @Test
     public void successfulResponse() {

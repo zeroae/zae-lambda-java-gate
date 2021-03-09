@@ -9,6 +9,8 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 import com.amazonaws.util.Base64;
 import com.amazonaws.xray.AWSXRay;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import gate.*;
 import gate.corpora.DocumentImpl;
 import gate.util.GateException;
@@ -50,6 +52,8 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private static final Logger logger = LogManager.getLogger(App.class);
     private static final CorpusController application = AWSXRay.createSegment(
             "Gate Load", App::loadApplication);
+    private static final AppMetadata metadata = loadMetadata();
+
     private static final Map<String, DocumentExporter> exporters = AWSXRay.createSegment(
             "Gate Exporters", Utils::loadExporters
     );
@@ -60,8 +64,32 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private static final URLStreamHandler b64Handler = new Handler();
 
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, final Context context) {
+        final String path = input.getPath();
+        if (path.matches("^/([^/]*)/?$"))
+            return handleExecute(input, context);
+        else if (path.matches("^/([^/]*)/metadata/?$"))
+            return handleMetadata(input, context);
+        else
+            throw new RuntimeException("How did you get here?");
+    }
+
+    public APIGatewayProxyResponseEvent handleMetadata(APIGatewayProxyRequestEvent input, final Context context) {
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                 .withHeaders(new HashMap<>());
+        response.getHeaders().put("Content-Type", "application/json");
+        try {
+            metadata.name = input.getPath().split("/")[1];
+            response.withBody(new ObjectMapper().writeValueAsString(metadata)).withStatusCode(200);
+        } catch (JsonProcessingException e) {
+            // This is really bad... let it go through
+            throw new RuntimeException(e);
+        }
+        return response;
+    }
+
+    public APIGatewayProxyResponseEvent handleExecute(APIGatewayProxyRequestEvent input, final Context context) {
+        final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
+                    .withHeaders(new HashMap<>());
         final Map<String, String> queryStringParams = Optional.ofNullable(input.getQueryStringParameters()).orElse(new HashMap<>());
         final Map<String, List<String>> mQueryStringParams = Optional.ofNullable(input.getMultiValueQueryStringParameters()).orElse(new HashMap<>());
         try {
@@ -208,6 +236,17 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         return response;
     }
 
+    private static AppMetadata loadMetadata() {
+        final AppMetadata rv = new AppMetadata();
+        // TODO: Load metadata/metadata.xml if it exists, and set as default values
+        rv.name = null;
+        rv.costPerRequest = Integer.parseInt(System.getenv().getOrDefault("GATE_APP_COST_PER_REQUEST", "0"));
+        rv.dailyQuota = Integer.parseUnsignedInt(System.getenv().getOrDefault("GATE_APP_DAILY_QUOTA", "0"));
+        rv.defaultAnnotations = System.getenv("GATE_APP_DEFAULT_ANNOTATIONS");
+        rv.additionalAnnotations = System.getenv("GATE_APP_ADDITIONAL_ANNOTATIONS");
+        return rv;
+    }
+
     private static CorpusController loadApplication() {
         try {
             final String gappResourcePah = GATE_APP_NAME + "/application.xgapp";
@@ -222,5 +261,4 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             throw new RuntimeException(e);
         }
     }
-
 }

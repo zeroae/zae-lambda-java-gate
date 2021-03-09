@@ -1,5 +1,5 @@
 ### Send POST request with json body
-POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/execute/
+POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/annie
 Content-Type: application/fastinfoset
 Accept: application/json
 
@@ -17,14 +17,14 @@ client.test("Response text Matches.", function() {
 %}
 
 ### Same with GATE XML Response
-POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/execute/
+POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/annie/
 Content-Type: application/fastinfoset
 Accept: application/gate+xml
 
 < hello-world.finf
 
 ### Same with GATE XML Response
-POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/execute/
+POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/annie/
 Content-Type: application/fastinfoset
 Accept: application/fastinfoset
 
