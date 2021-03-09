@@ -10,6 +10,7 @@ import com.amazonaws.util.Base64;
 import com.amazonaws.xray.AWSXRay;
 
 import gate.*;
+import gate.corpora.DocumentImpl;
 import gate.util.GateException;
 import gate.util.persistence.PersistenceManager;
 
@@ -44,6 +45,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private static final String CACHE_DIR = System.getenv().getOrDefault(
             "CACHE_DIR_PREFIX", "/tmp/lru/" + GATE_APP_NAME );
     private static final double CACHE_DIR_USAGE = .9;
+    private static final String DIGEST_SALT = UUID.randomUUID().toString();
 
     private static final Logger logger = LogManager.getLogger(App.class);
     private static final CorpusController application = AWSXRay.createSegment(
@@ -60,6 +62,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, final Context context) {
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                 .withHeaders(new HashMap<>());
+        final Map<String, String> queryStringParams = Optional.ofNullable(input.getQueryStringParameters()).orElse(new HashMap<>());
         try {
             final String acceptHeader = input.getHeaders().getOrDefault("Accept", "application/json");
             final String responseType = ((Supplier<String>) () -> {
@@ -80,12 +83,14 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
 
             final FeatureMap featureMap = Factory.newFeatureMap();
+            final Integer nextAnnotationId = Integer.parseInt(queryStringParams.getOrDefault("nextAnnotationId", "0"));
             final String contentType = input.getHeaders().getOrDefault("Content-Type", "text/plain");
             final String contentDigest = AWSXRay.createSubsegment("Message Digest",() -> {
-                String rv = Utils.computeMessageDigest(contentType, input.getBody());
+                String rv = Utils.computeMessageDigest(contentType + input.getBody() + nextAnnotationId + DIGEST_SALT);
                 AWSXRay.getCurrentSubsegment().putMetadata("SHA256", rv);
                 return rv;
             });
+            featureMap.put("nextAnnotationId", nextAnnotationId);
             putRequestBody(featureMap, contentType, contentDigest, input.getBody(), input.getIsBase64Encoded());
 
             response.getHeaders().put("x-zae-gate-cache", "HIT");
@@ -93,6 +98,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                 response.getHeaders().put("x-zae-gate-cache", "MISS");
                 return execute(featureMap);
             });
+
             AWSXRay.beginSubsegment("Gate Export");
             AWSXRay.getCurrentSubsegment().putMetadata("Content-Type", response.getHeaders().get("Content-Type"));
             try {
@@ -136,10 +142,18 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private Document execute(FeatureMap docFeatureMap) throws GateException {
         AWSXRay.beginSubsegment("Gate Execute");
         try {
-            final Document rv = (Document) Factory.createResource("gate.corpora.DocumentImpl", docFeatureMap);
-            application.getCorpus().add(rv);
+            final DocumentImpl rvImpl;
+
+            // Note: The DocumentImpl API does not conform to JavaBeans for the nextAnnotationId method.
+            //       Paragraphs may be annotated right away, so we need to handle that issue.
+            final int nextAnnotationId = (Integer)docFeatureMap.get("nextAnnotationId");
+            docFeatureMap.remove("nextAnnotationId");
+            rvImpl = (DocumentImpl) Factory.createResource("gate.corpora.DocumentImpl", docFeatureMap);
+            rvImpl.setNextAnnotationId(Math.max(nextAnnotationId, rvImpl.getNextAnnotationId()));
+
+            application.getCorpus().add(rvImpl);
             application.execute();
-            return rv;
+            return rvImpl;
         } catch (GateException e) {
             AWSXRay.getCurrentSubsegment().addException(e);
             throw e;

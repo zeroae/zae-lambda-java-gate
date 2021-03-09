@@ -84,6 +84,21 @@ public class AppTest {
     }
 
     @Test
+    public void testNextAnnotationId() {
+        final int nextAnnotationId = 1000 + new Random().nextInt(1000);
+        input.withQueryStringParameters(new HashMap<>())
+                .getQueryStringParameters()
+                .put("nextAnnotationId", String.valueOf(nextAnnotationId));
+
+        final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
+
+        assertEquals("application/gate+xml", result.getHeaders().get("Content-Type"));
+        final String resultBody = result.getBody();
+        assertNotNull(resultBody);
+        assertTrue(resultBody.contains("<Annotation Id=\"" + (nextAnnotationId+1) + "\""));
+    }
+
+    @Test
     public void testMissingContentType() {
         input_headers.remove("Content-Type", "text/plain");
         final TestContext context = new TestContext();
