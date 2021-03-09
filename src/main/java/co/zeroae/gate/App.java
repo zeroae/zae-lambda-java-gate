@@ -63,6 +63,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                 .withHeaders(new HashMap<>());
         final Map<String, String> queryStringParams = Optional.ofNullable(input.getQueryStringParameters()).orElse(new HashMap<>());
+        final Map<String, List<String>> mQueryStringParams = Optional.ofNullable(input.getMultiValueQueryStringParameters()).orElse(new HashMap<>());
         try {
             final String acceptHeader = input.getHeaders().getOrDefault("Accept", "application/json");
             final String responseType = ((Supplier<String>) () -> {
@@ -101,8 +102,10 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
             AWSXRay.beginSubsegment("Gate Export");
             AWSXRay.getCurrentSubsegment().putMetadata("Content-Type", response.getHeaders().get("Content-Type"));
+            final List<String> annotationSelector = mQueryStringParams.get("annotations");
+
             try {
-                return export(exporter, doc, response).withStatusCode(200);
+                return export(exporter, doc, annotationSelector, response).withStatusCode(200);
             } finally {
                 Factory.deleteResource(doc);
                 AWSXRay.endSubsegment();
@@ -166,23 +169,28 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     /**
      * @param exporter The document exporter
      * @param doc an instance of gate.Document
+     * @param annotationSelector the List of AnnotationTypes to return
      * @param response The response where we put the exported Document as body
      * @return the modified response
      */
     private APIGatewayProxyResponseEvent export(
             DocumentExporter exporter,
             Document doc,
+            List<String> annotationSelector,
             APIGatewayProxyResponseEvent response
     ) throws IOException {
         final FeatureMap exportOptions = Factory.newFeatureMap();
 
         // Take *all* annotation types.
         final AnnotationSet defaultAnnots = doc.getAnnotations();
-        final HashSet<String> annotationTypes = new HashSet<>();
-        for (Annotation annotation : defaultAnnots.inDocumentOrder()) {
-            annotationTypes.add(annotation.getType());
-        }
-        exportOptions.put("annotationTypes", annotationTypes);
+        final Set<String> excludedTypes = new HashSet<>(defaultAnnots.getAllTypes());
+        Optional.ofNullable(annotationSelector).ifPresent((selector) ->
+                doc.getFeatures().put("gate.cloud.annotationSelectors", annotationSelector));
+        excludedTypes.removeIf((type) ->
+                !Optional.ofNullable(annotationSelector).isPresent() || annotationSelector.contains(":"+ type)
+        );
+
+        defaultAnnots.removeIf((annotation) -> excludedTypes.contains(annotation.getType()));
 
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
