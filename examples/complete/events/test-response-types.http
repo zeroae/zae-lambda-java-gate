@@ -1,12 +1,12 @@
 ### Send POST request with json body
-POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/execute/
+POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/annie?annotations=:Token
 Content-Type: text/plain
 Accept: application/json
 
 Hello World!
 
 ### Send POST request with json body
-POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/execute/
+POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/annie/
 Content-Type: text/json
 Accept: application/json
 
@@ -15,7 +15,7 @@ Accept: application/json
 }
 
 ### Send POST request for gate+xml
-POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/execute/
+POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/annie/
 Content-Type: text/json
 Accept: application/gate+xml
 
@@ -24,7 +24,7 @@ Accept: application/gate+xml
 }
 
 ### Send POST request for gate+xml
-POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/execute/
+POST https://mh4gdixkm7.execute-api.us-east-1.amazonaws.com/Prod/annie/
 Content-Type: text/json
 Accept: application/fastinfoset
 
