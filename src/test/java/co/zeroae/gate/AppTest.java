@@ -23,9 +23,7 @@ import javax.xml.stream.XMLStreamReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
-import java.util.HashMap;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 import static com.github.stefanbirkner.systemlambda.SystemLambda.withEnvironmentVariable;
 import static org.junit.Assert.*;
@@ -81,6 +79,24 @@ public class AppTest {
 
         Document doc = Utils.xmlToDocument(new StringReader(resultBody));
         assertEquals(input.getBody(), doc.getContent().toString());
+    }
+
+    @Test
+    public void testAnnotationSelector() throws Exception {
+        APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
+        assertEquals("application/gate+xml", result.getHeaders().get("Content-Type"));
+
+        Document doc = Utils.xmlToDocument(new StringReader(result.getBody()));
+        assertEquals(7, doc.getAnnotations().getAllTypes().size());
+
+        // Now we downselect to only one field.
+        input.withMultiValueQueryStringParameters(new HashMap<>())
+                .getMultiValueQueryStringParameters()
+               .put("annotations", Collections.singletonList(":Token"));
+        result = app.handleRequest(input, context);
+
+        doc = Utils.xmlToDocument(new StringReader(result.getBody()));
+        assertEquals(1, doc.getAnnotations().getAllTypes().size());
     }
 
     @Test
