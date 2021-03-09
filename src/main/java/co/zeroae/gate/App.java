@@ -209,16 +209,21 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     ) throws IOException {
         final FeatureMap exportOptions = Factory.newFeatureMap();
 
-        // Take *all* annotation types.
-        final AnnotationSet defaultAnnots = doc.getAnnotations();
-        final Set<String> excludedTypes = new HashSet<>(defaultAnnots.getAllTypes());
-        Optional.ofNullable(annotationSelector).ifPresent((selector) ->
-                doc.getFeatures().put("gate.cloud.annotationSelectors", annotationSelector));
-        excludedTypes.removeIf((type) ->
-                !Optional.ofNullable(annotationSelector).isPresent() || annotationSelector.contains(":"+ type)
-        );
+        // Include the selected annotations in the doc features.
+        if (annotationSelector != null)
+            doc.getFeatures().put("gate.cloud.annotationSelectors", annotationSelector);
 
-        defaultAnnots.removeIf((annotation) -> excludedTypes.contains(annotation.getType()));
+        // Take *all* annotation types and filter based on AnnotationSelector
+        final AnnotationSet defaultAnnots = doc.getAnnotations();
+
+        // This if for GateJSONExporter (but should be for all exporters...)
+        final Set<String> includeTypes = new HashSet<>(defaultAnnots.getAllTypes());
+        if (annotationSelector != null)
+            includeTypes.removeIf((type) -> !annotationSelector.contains(":" + type));
+        exportOptions.put("annotationTypes", includeTypes);
+
+        // This is a hack for FastInfoSet and XML *only*, but we are going to do for all modes...
+        defaultAnnots.removeIf((annotation) -> !includeTypes.contains(annotation.getType()));
 
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         try {
@@ -227,6 +232,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             AWSXRay.getCurrentSubsegment().addException(e);
             throw e;
         }
+
         // If we add a second type, then we should create a "Set" at the Utils level and test against it.
         if (exporter.getMimeType().startsWith("application/fastinfoset")) {
             response.withIsBase64Encoded(true).setBody(Base64.encodeAsString(baos.toByteArray()));

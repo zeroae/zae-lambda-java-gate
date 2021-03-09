@@ -8,6 +8,7 @@ import com.amazonaws.util.StringInputStream;
 import com.amazonaws.xray.AWSXRay;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.sun.xml.fastinfoset.stax.StAXDocumentParser;
 import gate.Document;
 import gate.DocumentFormat;
@@ -144,7 +145,12 @@ public class AppTest {
             final JsonFactory factory = new JsonFactory();
             final JsonParser parser = factory.createParser(result.getBody());
             while (!parser.isClosed()) {
-                parser.nextToken();
+                if (parser.nextToken().equals(JsonToken.FIELD_NAME) &&
+                        parser.getText().equals("entities")) {
+                    assertEquals("entities is map type", JsonToken.START_OBJECT, parser.nextValue());
+                    assertNotEquals("entities is empty", JsonToken.END_OBJECT, parser.nextValue());
+                    break;
+                }
             }
         }
     }
