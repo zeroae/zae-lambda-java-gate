@@ -18,8 +18,9 @@ import java.util.*;
 
 public class Utils {
 
-    interface TextProcessor {
-        Document process() throws GateException;
+    @FunctionalInterface
+    interface GATESupplier<T> {
+        T get() throws GateException;
     }
 
     /**
