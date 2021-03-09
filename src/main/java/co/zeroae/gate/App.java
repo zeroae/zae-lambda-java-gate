@@ -8,20 +8,16 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 
 import com.amazonaws.util.Base64;
 import com.amazonaws.xray.AWSXRay;
-import com.amazonaws.xray.entities.Subsegment;
 
 import gate.*;
-import gate.creole.ResourceInstantiationException;
 import gate.util.GateException;
 import gate.util.persistence.PersistenceManager;
-
-import com.jakewharton.disklrucache.DiskLruCache;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
-import javax.xml.stream.XMLStreamException;
 import java.io.*;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLStreamHandler;
 import java.util.*;
@@ -56,8 +52,8 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             "Gate Exporters", Utils::loadExporters
     );
 
-    private static final DiskLruCache cache = AWSXRay.createSegment(
-            "Cache Init", App::initializeCache);
+    private static final DocumentLRUCache cache = AWSXRay.createSegment("Cache Init",
+            () -> new DocumentLRUCache(App.CACHE_DIR, App.CACHE_DIR_USAGE));
 
     private static final URLStreamHandler b64Handler = new Handler();
 
@@ -75,60 +71,28 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                 }
                 return null;
             }).get();
-            final DocumentExporter exporter = exporters.get(responseType);
-            if (exporter == null) {
-                throw new IOException("Unsupported response content type.");
-            }
             if (responseType != null)
                 response.getHeaders().put("Content-Type", responseType.split(";")[0].trim());
 
+            final DocumentExporter exporter = exporters.get(responseType);
+            if (exporter == null)
+                throw new IOException("Unsupported response content type.");
+
+
             final FeatureMap featureMap = Factory.newFeatureMap();
-            final String bodyType = input.getHeaders().getOrDefault("Content-Type", "text/plain");
-            final String inputDigest = AWSXRay.createSubsegment("Message Digest",() -> {
-                String rv = Utils.computeMessageDigest(bodyType, input.getBody());
+            final String contentType = input.getHeaders().getOrDefault("Content-Type", "text/plain");
+            final String contentDigest = AWSXRay.createSubsegment("Message Digest",() -> {
+                String rv = Utils.computeMessageDigest(contentType, input.getBody());
                 AWSXRay.getCurrentSubsegment().putMetadata("SHA256", rv);
                 return rv;
             });
-
-            featureMap.put(Document.DOCUMENT_MIME_TYPE_PARAMETER_NAME, bodyType);
-            if (!input.getIsBase64Encoded())
-                featureMap.put(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME, input.getBody());
-            else {
-                // GATE FastInfosetFormat can not handle binary in the string content.
-                Handler.paths.put(inputDigest, input.getBody());
-                featureMap.put(
-                        Document.DOCUMENT_URL_PARAMETER_NAME,
-                        new URL("b64",
-                                bodyType != null ? Base64.encodeAsString(bodyType.getBytes()) : null,
-                                64,
-                                inputDigest,
-                                b64Handler));
-            }
+            putRequestBody(featureMap, contentType, contentDigest, input.getBody(), input.getIsBase64Encoded());
 
             response.getHeaders().put("x-zae-gate-cache", "HIT");
-            final Document doc = cacheComputeIfNull(
-                    inputDigest,
-                    () -> {
-                        final Subsegment subsegment = AWSXRay.beginSubsegment("Gate Execute");
-                        final Corpus corpus = application.getCorpus();
-                        final Document rv = (Document)Factory.createResource(
-                                "gate.corpora.DocumentImpl",
-                                featureMap
-                        );
-                        response.getHeaders().put("x-zae-gate-cache", "MISS");
-                        try {
-                            corpus.add(rv);
-                            application.execute();
-                        } catch (GateException e) {
-                            subsegment.addException(e);
-                            throw e;
-                        } finally {
-                            corpus.clear();
-                            AWSXRay.endSubsegment();
-                        }
-                        return rv;
-                    }
-            );
+            final Document doc = cache.computeIfNull(contentDigest, () -> {
+                response.getHeaders().put("x-zae-gate-cache", "MISS");
+                return execute(featureMap);
+            });
             AWSXRay.beginSubsegment("Gate Export");
             AWSXRay.getCurrentSubsegment().putMetadata("Content-Type", response.getHeaders().get("Content-Type"));
             try {
@@ -152,41 +116,36 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         }
     }
 
-    private void cachePutDocument(String key, Document doc) {
-        try {
-            DiskLruCache.Editor editor = cache.edit(key);
-            editor.set(0, doc.toXml());
-            editor.commit();
-        } catch (IOException e) {
-            logger.warn(e);
-            AWSXRay.getCurrentSubsegment().addException(e);
+    private void putRequestBody(FeatureMap featureMap, String mimeType, String contentDigest, String content, boolean isBase64Encoded) throws MalformedURLException {
+        featureMap.put(Document.DOCUMENT_MIME_TYPE_PARAMETER_NAME, mimeType);
+        if (!isBase64Encoded)
+            featureMap.put(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME, content);
+        else {
+            // GATE FastInfosetFormat can not handle binary in the string content.
+            Handler.paths.put(contentDigest, content);
+            featureMap.put(
+                    Document.DOCUMENT_URL_PARAMETER_NAME,
+                    new URL("b64",
+                            mimeType != null ? Base64.encodeAsString(mimeType.getBytes()) : null,
+                            64,
+                            contentDigest,
+                            b64Handler));
         }
     }
 
-    private Document cacheComputeIfNull(String key, Utils.TextProcessor processor) throws GateException {
+    private Document execute(FeatureMap docFeatureMap) throws GateException {
+        AWSXRay.beginSubsegment("Gate Execute");
         try {
-            final DiskLruCache.Snapshot snapshot = cache.get(key);
-            if (snapshot == null) {
-                final Document doc = processor.process();
-                AWSXRay.createSubsegment("Cache Edit", () -> cachePutDocument(key, doc));
-                return doc;
-            } else {
-                AWSXRay.beginSubsegment("Cache Read");
-                try {
-                    return Utils.xmlToDocument(new InputStreamReader(snapshot.getInputStream(0)));
-                } catch (ResourceInstantiationException | XMLStreamException e) {
-                    logger.warn(e);
-                    AWSXRay.getCurrentSubsegment().addException(e);
-                    cache.remove(key);
-                    return processor.process();
-                } finally {
-                    AWSXRay.endSubsegment();
-                }
-            }
-        } catch (IOException e) {
-            logger.warn(e);
+            final Document rv = (Document) Factory.createResource("gate.corpora.DocumentImpl", docFeatureMap);
+            application.getCorpus().add(rv);
+            application.execute();
+            return rv;
+        } catch (GateException e) {
             AWSXRay.getCurrentSubsegment().addException(e);
-            return processor.process();
+            throw e;
+        } finally {
+            application.getCorpus().clear();
+            AWSXRay.endSubsegment();
         }
     }
 
@@ -238,23 +197,6 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             rv.setCorpus(corpus);
             return rv;
         } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static DiskLruCache initializeCache() {
-        File cacheDir = new File(CACHE_DIR);
-        if (!cacheDir.exists() && !cacheDir.mkdirs()) {
-            throw new RuntimeException("Unable to create cache directory '" + cacheDir.getName() + "'.");
-        }
-        for (File file: Objects.requireNonNull(cacheDir.listFiles())) file.delete();
-        try {
-            long usableSpace = (long) (cacheDir.getUsableSpace()*CACHE_DIR_USAGE);
-            return DiskLruCache.open(cacheDir,
-                    1,
-                    1,
-                    usableSpace);
-        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
