@@ -99,14 +99,11 @@ public class Utils {
         return Collections.unmodifiableMap(rv);
     }
 
-    static String computeMessageDigest(String mimeType, String bodyContent) {
+    static String computeMessageDigest(String message) {
         try {
             final String rv;
             final MessageDigest md = MessageDigest.getInstance("SHA-256");
-            if (mimeType != null)
-                md.update(mimeType.getBytes());
-            if (bodyContent != null)
-                md.update(bodyContent.getBytes());
+            md.update(message.getBytes());
             rv = Hex.encode(md.digest());
             return rv;
         } catch (NoSuchAlgorithmException e) {
