@@ -65,7 +65,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                 .withHeaders(new HashMap<>());
         try {
             final String responseType = input.getHeaders()
-                    .getOrDefault("Accept", "")
+                    .getOrDefault("Accept", "application/json")
                     .split(",")[0]
                     .split(";")[0];
             final DocumentExporter exporter = exporters.get(responseType);
