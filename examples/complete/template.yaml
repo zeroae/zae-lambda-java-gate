@@ -9,7 +9,7 @@ Description: >
 Globals:
   Api:
     BinaryMediaTypes:
-      - application~1fastinfoset
+      - "application~1fastinfoset"
   Function:
     Timeout: 120
 
@@ -20,7 +20,7 @@ Resources:
       CodeUri: gate-app
       Handler: co.zeroae.gate.App::handleRequest
       Runtime: java8.al2
-      MemorySize: 1024
+      MemorySize: 768
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
           GATE_APP_NAME: application
