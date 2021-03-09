@@ -4,18 +4,25 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import com.amazonaws.util.Base64;
 import com.amazonaws.util.IOUtils;
+import com.amazonaws.util.StringInputStream;
 import com.amazonaws.xray.AWSXRay;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
+import com.sun.xml.fastinfoset.stax.StAXDocumentParser;
 import gate.Document;
 import gate.DocumentFormat;
+import org.apache.commons.codec.binary.Base64InputStream;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
 import java.io.IOException;
 import java.io.StringReader;
+import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Random;
 import java.util.UUID;
@@ -104,6 +111,18 @@ public class AppTest {
 
     @Test
     public void testFastInfosetResponse() {
+        input_headers.put("Accept", "application/fastinfoset");
+
+        final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
+        assertEquals(200, result.getStatusCode().intValue());
+
+        // Ensure we get back application/fastinfoset back
+        assertEquals("application/fastinfoset", result.getHeaders().get("Content-Type"));
+        assertTrue(result.getIsBase64Encoded());
+    }
+
+    @Test
+    public void testFastInfosetResponseCloudClientParsing() throws UnsupportedEncodingException, XMLStreamException {
         input_headers.put("Accept", "application/fastinfoset; includeText=no");
 
         final APIGatewayProxyResponseEvent result = app.handleRequest(input, context);
@@ -112,6 +131,14 @@ public class AppTest {
         // Ensure we get back application/fastinfoset back
         assertEquals("application/fastinfoset", result.getHeaders().get("Content-Type"));
         assertTrue(result.getIsBase64Encoded());
+
+        // parse the response
+
+        XMLStreamReader xsr = new StAXDocumentParser(new Base64InputStream(new StringInputStream(result.getBody())));
+        xsr.nextTag(); // should be GateDocument
+        xsr.require(XMLStreamConstants.START_ELEMENT, null, "GateDocument");
+        xsr.nextTag(); // should be AnnotationSet ?
+        xsr.require(XMLStreamConstants.START_ELEMENT, null, "AnnotationSet");
     }
 
     @Test

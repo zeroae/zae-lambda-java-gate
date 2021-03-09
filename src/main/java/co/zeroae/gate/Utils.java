@@ -9,9 +9,7 @@ import gate.creole.ResourceInstantiationException;
 import gate.util.GateException;
 import org.codehaus.httpcache4j.util.Hex;
 
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
+import javax.xml.stream.*;
 import java.io.Reader;
 import java.net.MalformedURLException;
 import java.security.MessageDigest;
@@ -82,15 +80,21 @@ public class Utils {
      * @return an UnmodifiableMap of the supported exporters.
      */
     static Map<String, DocumentExporter> loadExporters() {
-        final GateXMLExporter gateXMLExporter = new GateXMLExporter();
         final GATEJsonExporter gateJsonExporter = new GATEJsonExporter();
+        final GateXMLExporter gateXMLExporter = new GateXMLExporter();
         final FastInfosetExporter fastInfosetExporter = new FastInfosetExporter();
+
+        final AnnotationSetExporter.GateXML annotationSetXMLExporter = new AnnotationSetExporter.GateXML();
+        final AnnotationSetExporter.GATEFastInfoset annotationSetFastInfosetExporter = new AnnotationSetExporter.GATEFastInfoset();
 
         final Map<String, DocumentExporter> rv = new HashMap<>();
         rv.put("application/gate+xml", gateXMLExporter);
         rv.put("application/gate+json", gateJsonExporter);
-        rv.put("application/json", gateJsonExporter);
-        rv.put("application/fastinfoset", fastInfosetExporter);
+        rv.put(gateJsonExporter.getMimeType(), gateJsonExporter);
+        rv.put(fastInfosetExporter.getMimeType(), fastInfosetExporter);
+
+        rv.put("application/gate+xml; includeText=no", annotationSetXMLExporter);
+        rv.put("application/fastinfoset; includeText=no", annotationSetFastInfosetExporter);
         return Collections.unmodifiableMap(rv);
     }
 

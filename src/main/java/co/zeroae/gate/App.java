@@ -25,6 +25,7 @@ import java.io.*;
 import java.net.URL;
 import java.net.URLStreamHandler;
 import java.util.*;
+import java.util.function.Supplier;
 
 /**
  * This class implements a GATE application using AWS Lambda.
@@ -64,16 +65,22 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                 .withHeaders(new HashMap<>());
         try {
-            final String responseType = input.getHeaders()
-                    .getOrDefault("Accept", "application/json")
-                    .split(",")[0]
-                    .split(";")[0];
+            final String acceptHeader = input.getHeaders().getOrDefault("Accept", "application/json");
+            final String responseType = ((Supplier<String>) () -> {
+                for (String mimeType : acceptHeader.split(",")) {
+                    if (exporters.containsKey(mimeType.trim()))
+                        return mimeType.trim();
+                    else if (exporters.containsKey(mimeType.split(";")[0].trim()))
+                        return mimeType.split(";")[0].trim();
+                }
+                return null;
+            }).get();
             final DocumentExporter exporter = exporters.get(responseType);
             if (exporter == null) {
                 throw new IOException("Unsupported response content type.");
-            } else {
-                response.getHeaders().put("Content-Type", responseType);
             }
+            if (responseType != null)
+                response.getHeaders().put("Content-Type", responseType.split(";")[0].trim());
 
             final FeatureMap featureMap = Factory.newFeatureMap();
             final String bodyType = input.getHeaders().getOrDefault("Content-Type", "text/plain");
@@ -123,7 +130,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                     }
             );
             AWSXRay.beginSubsegment("Gate Export");
-            AWSXRay.getCurrentSubsegment().putMetadata("Content-Type", responseType);
+            AWSXRay.getCurrentSubsegment().putMetadata("Content-Type", response.getHeaders().get("Content-Type"));
             try {
                 return export(exporter, doc, response).withStatusCode(200);
             } finally {
@@ -212,7 +219,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             throw e;
         }
         // If we add a second type, then we should create a "Set" at the Utils level and test against it.
-        if (exporter.getMimeType().equals("application/fastinfoset")) {
+        if (exporter.getMimeType().startsWith("application/fastinfoset")) {
             response.withIsBase64Encoded(true).setBody(Base64.encodeAsString(baos.toByteArray()));
         } else {
             response.setBody(baos.toString());
