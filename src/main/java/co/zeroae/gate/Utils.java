@@ -18,6 +18,34 @@ import java.util.*;
 
 public class Utils {
 
+    static final Map<String, DocumentExporter> exporters = loadExporters();
+
+    static String ensureValidRequestContentType(String contentType) throws GateException {
+        final String rv = contentType.equals("application/json") ? "text/json" : contentType;
+        if (!DocumentFormat.getSupportedMimeTypes().contains(rv)) {
+            throw new GateException(
+                    "Unsupported MIME type " + contentType + " valid options are "
+                            + Arrays.toString(DocumentFormat.getSupportedMimeTypes()
+                            .stream()
+                            .map((type) -> type.equals("text/json") ? "application/json" : type)
+                            .sorted()
+                            .toArray())
+                    );
+        }
+        return rv;
+    }
+
+    static String ensureValidResponseType(String acceptHeader) throws GateException {
+        for (String mimeType : acceptHeader.split(",")) {
+            if (exporters.containsKey(mimeType.trim()))
+                return mimeType.trim();
+            else if (exporters.containsKey(mimeType.split(";")[0].trim()))
+                return mimeType.split(";")[0].trim();
+        }
+        throw new GateException("Unsupported MIME response type " + acceptHeader + ", valid options are " +
+                Arrays.toString(exporters.keySet().stream().sorted().toArray()));
+    }
+
     @FunctionalInterface
     interface GATESupplier<T> {
         T get() throws GateException;

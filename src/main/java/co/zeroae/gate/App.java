@@ -24,7 +24,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLStreamHandler;
 import java.util.*;
-import java.util.function.Supplier;
 
 /**
  * This class implements a GATE application using AWS Lambda.
@@ -53,10 +52,6 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private static final CorpusController application = AWSXRay.createSegment(
             "Gate Load", App::loadApplication);
     private static final AppMetadata metadata = loadMetadata();
-
-    private static final Map<String, DocumentExporter> exporters = AWSXRay.createSegment(
-            "Gate Exporters", Utils::loadExporters
-    );
 
     private static final DocumentLRUCache cache = AWSXRay.createSegment("Cache Init",
             () -> new DocumentLRUCache(App.CACHE_DIR, App.CACHE_DIR_USAGE));
@@ -94,26 +89,13 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         final Map<String, List<String>> mQueryStringParams = Optional.ofNullable(input.getMultiValueQueryStringParameters()).orElse(new HashMap<>());
         try {
             final String acceptHeader = input.getHeaders().getOrDefault("Accept", "application/json");
-            final String responseType = ((Supplier<String>) () -> {
-                for (String mimeType : acceptHeader.split(",")) {
-                    if (exporters.containsKey(mimeType.trim()))
-                        return mimeType.trim();
-                    else if (exporters.containsKey(mimeType.split(";")[0].trim()))
-                        return mimeType.split(";")[0].trim();
-                }
-                return null;
-            }).get();
-            if (responseType != null)
-                response.getHeaders().put("Content-Type", responseType.split(";")[0].trim());
-
-            final DocumentExporter exporter = exporters.get(responseType);
-            if (exporter == null)
-                throw new IOException("Unsupported response content type.");
-
+            final String responseType = Utils.ensureValidResponseType(acceptHeader);
+            final DocumentExporter exporter = Utils.exporters.get(responseType);
+            response.getHeaders().put("Content-Type", responseType.split(";")[0].trim());
 
             final FeatureMap featureMap = Factory.newFeatureMap();
             final Integer nextAnnotationId = Integer.parseInt(queryStringParams.getOrDefault("nextAnnotationId", "0"));
-            final String contentType = input.getHeaders().getOrDefault("Content-Type", "text/plain");
+            final String contentType = Utils.ensureValidRequestContentType(input.getHeaders().getOrDefault("Content-Type", "text/plain"));
             final String contentDigest = AWSXRay.createSubsegment("Message Digest",() -> {
                 String rv = Utils.computeMessageDigest(contentType + input.getBody() + nextAnnotationId + DIGEST_SALT);
                 AWSXRay.getCurrentSubsegment().putMetadata("SHA256", rv);
