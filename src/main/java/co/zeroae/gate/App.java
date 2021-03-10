@@ -142,14 +142,28 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             logger.error(e);
             AWSXRay.getCurrentSubsegmentOptional().ifPresent((segment -> segment.addException(e)));
             response.getHeaders().put("Content-Type", "application/json");
-            return response.withStatusCode(400).withBody(String.format(
-                    "{\"message\":\"%s\"}", e.getMessage()));
+            try {
+                return response.withStatusCode(400).withBody(new ObjectMapper().writeValueAsString(
+                        new HashMap<String, Object>() {{
+                            put("message", e.getMessage());
+                        }}
+                ));
+            } catch (JsonProcessingException jsonProcessingException) {
+                throw new RuntimeException(jsonProcessingException);
+            }
         } catch (IOException e) {
             logger.error(e);
             AWSXRay.getCurrentSubsegmentOptional().ifPresent((segment -> segment.addException(e)));
             response.getHeaders().put("Content-Type", "application/json");
-            return response.withStatusCode(406).withBody(String.format(
-                    "{\"message\":\"%s\"}", e.getMessage()));
+            try {
+                return response.withStatusCode(406).withBody(new ObjectMapper().writeValueAsString(
+                        new HashMap<String, Object>() {{
+                            put("message", e.getMessage());
+                        }}
+                ));
+            } catch (JsonProcessingException jsonProcessingException) {
+                throw new RuntimeException(jsonProcessingException);
+            }
         }
     }
 
