@@ -9,7 +9,6 @@ import gate.corpora.DocumentStaxUtils;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
-
 import java.io.IOException;
 import java.io.OutputStream;
 
@@ -47,6 +46,7 @@ abstract class AnnotationSetExporter extends DocumentExporter {
         public GATEFastInfoset() {
             super("AnnotationSet FastInfoset", "finf", "application/fastinfoset; includeText=no");
         }
+
         @Override
         public void export(Document doc, OutputStream out, FeatureMap options) throws IOException {
             try {
@@ -60,6 +60,7 @@ abstract class AnnotationSetExporter extends DocumentExporter {
 
     static class GateXML extends AnnotationSetExporter {
         private static final XMLOutputFactory outputFactory = XMLOutputFactory.newInstance();
+
         /**
          * Creates a new exporter instance for a given file type with default
          * extension.

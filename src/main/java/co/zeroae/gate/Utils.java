@@ -11,7 +11,9 @@ import gate.creole.ResourceInstantiationException;
 import gate.util.GateException;
 import org.codehaus.httpcache4j.util.Hex;
 
-import javax.xml.stream.*;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
 import java.io.Reader;
 import java.net.MalformedURLException;
 import java.security.MessageDigest;
@@ -42,7 +44,7 @@ public class Utils {
                             .map((type) -> type.equals("text/json") ? "application/json" : type)
                             .sorted()
                             .toArray())
-                    );
+            );
         }
         return rv;
     }
@@ -58,17 +60,11 @@ public class Utils {
                 Arrays.toString(exporters.keySet().stream().sorted().toArray()));
     }
 
-    @FunctionalInterface
-    interface GATESupplier<T> {
-        T get() throws GateException;
-    }
-
     /**
-     *
      * @param gateXMLReader a Reader with GateXML content.
      * @return The parsed Document.
      * @throws ResourceInstantiationException if the Factory fails to create an empty Document.
-     * @throws XMLStreamException if the reader has invalid XML content.
+     * @throws XMLStreamException             if the reader has invalid XML content.
      */
     static Document xmlToDocument(Reader gateXMLReader) throws ResourceInstantiationException, XMLStreamException {
         final Document doc = Factory.newDocument("");
@@ -76,26 +72,9 @@ public class Utils {
         reader = XMLInputFactory.newFactory().createXMLStreamReader(gateXMLReader);
         do {
             reader.next();
-        } while(reader.getEventType() != XMLStreamReader.START_ELEMENT);
+        } while (reader.getEventType() != XMLStreamReader.START_ELEMENT);
         gate.corpora.DocumentStaxUtils.readGateXmlDocument(reader, doc);
         return doc;
-    }
-
-    /**
-     * The Plugin.Component class has a bug when the baseUrl fails to resolve uniquely.
-     * This fixes the bug by assigning the Class' hashCode instead of the Plugin level one.
-     */
-    private static class UniqueHashComponent extends Plugin.Component {
-        final private int hashCode;
-        public UniqueHashComponent(Class<? extends Resource> resourceClass) throws MalformedURLException {
-            super(resourceClass);
-            hashCode = resourceClass.hashCode();
-        }
-
-        @Override
-        public int hashCode() {
-            return hashCode;
-        }
     }
 
     static void loadDocumentFormats() {
@@ -108,7 +87,7 @@ public class Utils {
             classes.add(JSONTweetFormat.class);
             classes.add(MediaWikiDocumentFormat.class);
             classes.add(PubmedTextDocumentFormat.class);
-            for (Class<? extends gate.Resource> clazz: classes) {
+            for (Class<? extends gate.Resource> clazz : classes) {
                 Gate.getCreoleRegister().registerPlugin(new UniqueHashComponent(clazz));
             }
         } catch (GateException | MalformedURLException e) {
@@ -118,6 +97,7 @@ public class Utils {
 
     /**
      * Loads all exporters that we support
+     *
      * @return an UnmodifiableMap of the supported exporters.
      */
     static Map<String, DocumentExporter> loadExporters() {
@@ -148,6 +128,29 @@ public class Utils {
             return rv;
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    @FunctionalInterface
+    interface GATESupplier<T> {
+        T get() throws GateException;
+    }
+
+    /**
+     * The Plugin.Component class has a bug when the baseUrl fails to resolve uniquely.
+     * This fixes the bug by assigning the Class' hashCode instead of the Plugin level one.
+     */
+    private static class UniqueHashComponent extends Plugin.Component {
+        final private int hashCode;
+
+        public UniqueHashComponent(Class<? extends Resource> resourceClass) throws MalformedURLException {
+            super(resourceClass);
+            hashCode = resourceClass.hashCode();
+        }
+
+        @Override
+        public int hashCode() {
+            return hashCode;
         }
     }
 }

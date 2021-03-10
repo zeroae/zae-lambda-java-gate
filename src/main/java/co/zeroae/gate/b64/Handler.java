@@ -15,6 +15,12 @@ import java.util.WeakHashMap;
 
 public class Handler extends URLStreamHandler {
     static final public Map<String, String> paths = Collections.synchronizedMap(new WeakHashMap<>());
+
+    @Override
+    protected URLConnection openConnection(URL u) {
+        return new Connection(u);
+    }
+
     private class Connection extends URLConnection {
         /**
          * Constructs a URL connection to the specified URL. A connection to
@@ -25,6 +31,7 @@ public class Handler extends URLStreamHandler {
         protected Connection(URL url) {
             super(url);
         }
+
         @Override
         public void connect() {
         }
@@ -40,9 +47,5 @@ public class Handler extends URLStreamHandler {
                     paths.get(url.getPath())
             ));
         }
-    }
-    @Override
-    protected URLConnection openConnection(URL u) {
-        return new Connection(u);
     }
 }

@@ -5,21 +5,20 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
-
 import com.amazonaws.util.Base64;
 import com.amazonaws.xray.AWSXRay;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import gate.*;
 import gate.corpora.DocumentImpl;
 import gate.util.GateException;
 import gate.util.persistence.PersistenceManager;
-
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLStreamHandler;
@@ -31,6 +30,19 @@ import java.util.*;
  * For every lambda invocation, it runs the application and outputs the result in GateXML format.
  */
 public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+    private static final String GATE_APP_NAME = System.getenv("GATE_APP_NAME");
+    private static final String CACHE_DIR = System.getenv().getOrDefault(
+            "CACHE_DIR_PREFIX", "/tmp/lru/" + GATE_APP_NAME);
+    private static final double CACHE_DIR_USAGE = .9;
+    private static final String DIGEST_SALT = UUID.randomUUID().toString();
+    private static final Logger logger = LogManager.getLogger(App.class);
+    private static final CorpusController application = AWSXRay.createSegment(
+            "Gate Load", App::loadApplication);
+    private static final AppMetadata metadata = loadMetadata();
+    private static final DocumentLRUCache cache = AWSXRay.createSegment("Cache Init",
+            () -> new DocumentLRUCache(App.CACHE_DIR, App.CACHE_DIR_USAGE));
+    private static final URLStreamHandler b64Handler = new Handler();
+
     static {
         AWSXRay.createSegment("Gate Init", () -> {
             try {
@@ -42,21 +54,31 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         });
     }
 
-    private static final String GATE_APP_NAME = System.getenv("GATE_APP_NAME");
-    private static final String CACHE_DIR = System.getenv().getOrDefault(
-            "CACHE_DIR_PREFIX", "/tmp/lru/" + GATE_APP_NAME );
-    private static final double CACHE_DIR_USAGE = .9;
-    private static final String DIGEST_SALT = UUID.randomUUID().toString();
+    private static AppMetadata loadMetadata() {
+        final AppMetadata rv = new AppMetadata();
+        // TODO: Load metadata/metadata.xml if it exists, and set as default values
+        rv.name = null;
+        rv.costPerRequest = Integer.parseInt(System.getenv().getOrDefault("GATE_APP_COST_PER_REQUEST", "0"));
+        rv.dailyQuota = Integer.parseUnsignedInt(System.getenv().getOrDefault("GATE_APP_DAILY_QUOTA", "0"));
+        rv.defaultAnnotations = System.getenv("GATE_APP_DEFAULT_ANNOTATIONS");
+        rv.additionalAnnotations = System.getenv("GATE_APP_ADDITIONAL_ANNOTATIONS");
+        return rv;
+    }
 
-    private static final Logger logger = LogManager.getLogger(App.class);
-    private static final CorpusController application = AWSXRay.createSegment(
-            "Gate Load", App::loadApplication);
-    private static final AppMetadata metadata = loadMetadata();
-
-    private static final DocumentLRUCache cache = AWSXRay.createSegment("Cache Init",
-            () -> new DocumentLRUCache(App.CACHE_DIR, App.CACHE_DIR_USAGE));
-
-    private static final URLStreamHandler b64Handler = new Handler();
+    private static CorpusController loadApplication() {
+        try {
+            final String gappResourcePah = GATE_APP_NAME + "/application.xgapp";
+            final URL gappUrl = App.class.getClassLoader().getResource(gappResourcePah);
+            final File gappFile = new File(Objects.requireNonNull(gappUrl).getFile());
+            final CorpusController rv =
+                    (CorpusController) PersistenceManager.loadObjectFromFile(gappFile);
+            final Corpus corpus = Factory.newCorpus("Lambda Corpus");
+            rv.setCorpus(corpus);
+            return rv;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent input, final Context context) {
         final String path = input.getPath();
@@ -84,7 +106,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
     public APIGatewayProxyResponseEvent handleExecute(APIGatewayProxyRequestEvent input, final Context context) {
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
-                    .withHeaders(new HashMap<>());
+                .withHeaders(new HashMap<>());
         final Map<String, String> headers = input.getHeaders();
         final Map<String, String> queryStringParams = Optional.ofNullable(
                 input.getQueryStringParameters()).orElse(new HashMap<>());
@@ -101,7 +123,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                     "nextAnnotationId", "0"));
             final String contentType = Utils.ensureValidRequestContentType(headers.getOrDefault(
                     "Content-Type", "text/plain"));
-            final String contentDigest = AWSXRay.createSubsegment("Message Digest",() -> {
+            final String contentDigest = AWSXRay.createSubsegment("Message Digest", () -> {
                 String rv = Utils.computeMessageDigest(contentType + input.getBody() + nextAnnotationId + DIGEST_SALT);
                 AWSXRay.getCurrentSubsegment().putMetadata("SHA256", rv);
                 return rv;
@@ -176,7 +198,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
             // Note: The DocumentImpl API does not conform to JavaBeans for the nextAnnotationId method.
             //       Paragraphs may be annotated right away, so we need to handle that issue.
-            final int nextAnnotationId = (Integer)docFeatureMap.get("nextAnnotationId");
+            final int nextAnnotationId = (Integer) docFeatureMap.get("nextAnnotationId");
             docFeatureMap.remove("nextAnnotationId");
             rvImpl = (DocumentImpl) Factory.createResource("gate.corpora.DocumentImpl", docFeatureMap);
             rvImpl.setNextAnnotationId(Math.max(nextAnnotationId, rvImpl.getNextAnnotationId()));
@@ -194,10 +216,10 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     }
 
     /**
-     * @param exporter The document exporter
-     * @param doc an instance of gate.Document
+     * @param exporter           The document exporter
+     * @param doc                an instance of gate.Document
      * @param annotationSelector the List of AnnotationTypes to return
-     * @param response The response where we put the exported Document as body
+     * @param response           The response where we put the exported Document as body
      * @return the modified response
      */
     private APIGatewayProxyResponseEvent export(
@@ -239,31 +261,5 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             response.setBody(baos.toString());
         }
         return response;
-    }
-
-    private static AppMetadata loadMetadata() {
-        final AppMetadata rv = new AppMetadata();
-        // TODO: Load metadata/metadata.xml if it exists, and set as default values
-        rv.name = null;
-        rv.costPerRequest = Integer.parseInt(System.getenv().getOrDefault("GATE_APP_COST_PER_REQUEST", "0"));
-        rv.dailyQuota = Integer.parseUnsignedInt(System.getenv().getOrDefault("GATE_APP_DAILY_QUOTA", "0"));
-        rv.defaultAnnotations = System.getenv("GATE_APP_DEFAULT_ANNOTATIONS");
-        rv.additionalAnnotations = System.getenv("GATE_APP_ADDITIONAL_ANNOTATIONS");
-        return rv;
-    }
-
-    private static CorpusController loadApplication() {
-        try {
-            final String gappResourcePah = GATE_APP_NAME + "/application.xgapp";
-            final URL gappUrl = App.class.getClassLoader().getResource(gappResourcePah);
-            final File gappFile = new File(Objects.requireNonNull(gappUrl).getFile());
-            final CorpusController rv =
-                    (CorpusController) PersistenceManager.loadObjectFromFile(gappFile);
-            final Corpus corpus = Factory.newCorpus("Lambda Corpus");
-            rv.setCorpus(corpus);
-            return rv;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 }
