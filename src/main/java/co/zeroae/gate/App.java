@@ -85,24 +85,29 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     public APIGatewayProxyResponseEvent handleExecute(APIGatewayProxyRequestEvent input, final Context context) {
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                     .withHeaders(new HashMap<>());
-        final Map<String, String> queryStringParams = Optional.ofNullable(input.getQueryStringParameters()).orElse(new HashMap<>());
-        final Map<String, List<String>> mQueryStringParams = Optional.ofNullable(input.getMultiValueQueryStringParameters()).orElse(new HashMap<>());
+        final Map<String, String> headers = input.getHeaders();
+        final Map<String, String> queryStringParams = Optional.ofNullable(
+                input.getQueryStringParameters()).orElse(new HashMap<>());
+        final Map<String, List<String>> mQueryStringParams = Optional.ofNullable(
+                input.getMultiValueQueryStringParameters()).orElse(new HashMap<>());
         try {
-            final String acceptHeader = input.getHeaders().getOrDefault("Accept", "application/json");
-            final String responseType = Utils.ensureValidResponseType(acceptHeader);
+            final String responseType = Utils.ensureValidResponseType(headers.getOrDefault(
+                    "Accept", "application/json"));
             final DocumentExporter exporter = Utils.exporters.get(responseType);
             response.getHeaders().put("Content-Type", responseType.split(";")[0].trim());
 
             final FeatureMap featureMap = Factory.newFeatureMap();
-            final Integer nextAnnotationId = Integer.parseInt(queryStringParams.getOrDefault("nextAnnotationId", "0"));
-            final String contentType = Utils.ensureValidRequestContentType(input.getHeaders().getOrDefault("Content-Type", "text/plain"));
+            final Integer nextAnnotationId = Integer.parseInt(queryStringParams.getOrDefault(
+                    "nextAnnotationId", "0"));
+            final String contentType = Utils.ensureValidRequestContentType(headers.getOrDefault(
+                    "Content-Type", "text/plain"));
             final String contentDigest = AWSXRay.createSubsegment("Message Digest",() -> {
                 String rv = Utils.computeMessageDigest(contentType + input.getBody() + nextAnnotationId + DIGEST_SALT);
                 AWSXRay.getCurrentSubsegment().putMetadata("SHA256", rv);
                 return rv;
             });
             featureMap.put("nextAnnotationId", nextAnnotationId);
-            putRequestBody(featureMap, contentType, contentDigest, input.getBody(), input.getIsBase64Encoded());
+            featureMapPutContent(featureMap, contentType, contentDigest, input.getBody(), input.getIsBase64Encoded());
 
             response.getHeaders().put("x-zae-gate-cache", "HIT");
             final Document doc = cache.computeIfNull(contentDigest, () -> {
@@ -141,7 +146,13 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         }
     }
 
-    private void putRequestBody(FeatureMap featureMap, String mimeType, String contentDigest, String content, boolean isBase64Encoded) throws MalformedURLException {
+    private void featureMapPutContent(
+            FeatureMap featureMap,
+            String mimeType,
+            String contentDigest,
+            String content,
+            boolean isBase64Encoded
+    ) throws MalformedURLException {
         featureMap.put(Document.DOCUMENT_MIME_TYPE_PARAMETER_NAME, mimeType);
         if (!isBase64Encoded)
             featureMap.put(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME, content);
