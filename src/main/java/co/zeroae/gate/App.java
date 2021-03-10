@@ -30,6 +30,17 @@ import java.util.*;
  * For every lambda invocation, it runs the application and outputs the result in GateXML format.
  */
 public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+    static {
+        AWSXRay.createSegment("Gate Init", () -> {
+            try {
+                Gate.init();
+                Utils.loadDocumentFormats();
+            } catch (GateException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
     private static final String GATE_APP_NAME = System.getenv("GATE_APP_NAME");
     private static final String CACHE_DIR = System.getenv().getOrDefault(
             "CACHE_DIR_PREFIX", "/tmp/lru/" + GATE_APP_NAME);
@@ -42,17 +53,6 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private static final DocumentLRUCache cache = AWSXRay.createSegment("Cache Init",
             () -> new DocumentLRUCache(App.CACHE_DIR, App.CACHE_DIR_USAGE));
     private static final URLStreamHandler b64Handler = new Handler();
-
-    static {
-        AWSXRay.createSegment("Gate Init", () -> {
-            try {
-                Gate.init();
-                Utils.loadDocumentFormats();
-            } catch (GateException e) {
-                throw new RuntimeException(e);
-            }
-        });
-    }
 
     private static AppMetadata loadMetadata() {
         final AppMetadata rv = new AppMetadata();
