@@ -1,5 +1,7 @@
 package co.zeroae.gate;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import gate.*;
 import gate.corpora.*;
 import gate.corpora.export.GATEJsonExporter;
@@ -18,7 +20,17 @@ import java.util.*;
 
 public class Utils {
 
+    static final ObjectMapper objectMapper = new ObjectMapper();
+
     static final Map<String, DocumentExporter> exporters = loadExporters();
+
+    static String asJson(Map<String, Object> obj) {
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException jsonProcessingException) {
+            throw new RuntimeException(jsonProcessingException);
+        }
+    }
 
     static String ensureValidRequestContentType(String contentType) throws GateException {
         final String rv = contentType.equals("application/json") ? "text/json" : contentType;
