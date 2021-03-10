@@ -24,7 +24,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLStreamHandler;
 import java.util.*;
-import java.util.function.Supplier;
 
 /**
  * This class implements a GATE application using AWS Lambda.
@@ -54,10 +53,6 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             "Gate Load", App::loadApplication);
     private static final AppMetadata metadata = loadMetadata();
 
-    private static final Map<String, DocumentExporter> exporters = AWSXRay.createSegment(
-            "Gate Exporters", Utils::loadExporters
-    );
-
     private static final DocumentLRUCache cache = AWSXRay.createSegment("Cache Init",
             () -> new DocumentLRUCache(App.CACHE_DIR, App.CACHE_DIR_USAGE));
 
@@ -70,7 +65,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         else if (path.matches("^/([^/]*)/metadata/?$"))
             return handleMetadata(input, context);
         else
-            throw new RuntimeException("How did you get here?");
+            throw new RuntimeException("Unexpected path expression " + path);
     }
 
     public APIGatewayProxyResponseEvent handleMetadata(APIGatewayProxyRequestEvent input, final Context context) {
@@ -90,37 +85,29 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     public APIGatewayProxyResponseEvent handleExecute(APIGatewayProxyRequestEvent input, final Context context) {
         final APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
                     .withHeaders(new HashMap<>());
-        final Map<String, String> queryStringParams = Optional.ofNullable(input.getQueryStringParameters()).orElse(new HashMap<>());
-        final Map<String, List<String>> mQueryStringParams = Optional.ofNullable(input.getMultiValueQueryStringParameters()).orElse(new HashMap<>());
+        final Map<String, String> headers = input.getHeaders();
+        final Map<String, String> queryStringParams = Optional.ofNullable(
+                input.getQueryStringParameters()).orElse(new HashMap<>());
+        final Map<String, List<String>> mQueryStringParams = Optional.ofNullable(
+                input.getMultiValueQueryStringParameters()).orElse(new HashMap<>());
         try {
-            final String acceptHeader = input.getHeaders().getOrDefault("Accept", "application/json");
-            final String responseType = ((Supplier<String>) () -> {
-                for (String mimeType : acceptHeader.split(",")) {
-                    if (exporters.containsKey(mimeType.trim()))
-                        return mimeType.trim();
-                    else if (exporters.containsKey(mimeType.split(";")[0].trim()))
-                        return mimeType.split(";")[0].trim();
-                }
-                return null;
-            }).get();
-            if (responseType != null)
-                response.getHeaders().put("Content-Type", responseType.split(";")[0].trim());
-
-            final DocumentExporter exporter = exporters.get(responseType);
-            if (exporter == null)
-                throw new IOException("Unsupported response content type.");
-
+            final String responseType = Utils.ensureValidResponseType(headers.getOrDefault(
+                    "Accept", "application/json"));
+            final DocumentExporter exporter = Utils.exporters.get(responseType);
+            response.getHeaders().put("Content-Type", responseType.split(";")[0].trim());
 
             final FeatureMap featureMap = Factory.newFeatureMap();
-            final Integer nextAnnotationId = Integer.parseInt(queryStringParams.getOrDefault("nextAnnotationId", "0"));
-            final String contentType = input.getHeaders().getOrDefault("Content-Type", "text/plain");
+            final Integer nextAnnotationId = Integer.parseInt(queryStringParams.getOrDefault(
+                    "nextAnnotationId", "0"));
+            final String contentType = Utils.ensureValidRequestContentType(headers.getOrDefault(
+                    "Content-Type", "text/plain"));
             final String contentDigest = AWSXRay.createSubsegment("Message Digest",() -> {
                 String rv = Utils.computeMessageDigest(contentType + input.getBody() + nextAnnotationId + DIGEST_SALT);
                 AWSXRay.getCurrentSubsegment().putMetadata("SHA256", rv);
                 return rv;
             });
             featureMap.put("nextAnnotationId", nextAnnotationId);
-            putRequestBody(featureMap, contentType, contentDigest, input.getBody(), input.getIsBase64Encoded());
+            featureMapPutContent(featureMap, contentType, contentDigest, input.getBody(), input.getIsBase64Encoded());
 
             response.getHeaders().put("x-zae-gate-cache", "HIT");
             final Document doc = cache.computeIfNull(contentDigest, () -> {
@@ -142,18 +129,30 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             logger.error(e);
             AWSXRay.getCurrentSubsegmentOptional().ifPresent((segment -> segment.addException(e)));
             response.getHeaders().put("Content-Type", "application/json");
-            return response.withStatusCode(400).withBody(String.format(
-                    "{\"message\":\"%s\"}", e.getMessage()));
+            return response.withStatusCode(400).withBody(Utils.asJson(
+                    new HashMap<String, Object>() {{
+                        put("message", e.getMessage());
+                    }}
+            ));
         } catch (IOException e) {
             logger.error(e);
             AWSXRay.getCurrentSubsegmentOptional().ifPresent((segment -> segment.addException(e)));
             response.getHeaders().put("Content-Type", "application/json");
-            return response.withStatusCode(406).withBody(String.format(
-                    "{\"message\":\"%s\"}", e.getMessage()));
+            return response.withStatusCode(406).withBody(Utils.asJson(
+                    new HashMap<String, Object>() {{
+                        put("message", e.getMessage());
+                    }}
+            ));
         }
     }
 
-    private void putRequestBody(FeatureMap featureMap, String mimeType, String contentDigest, String content, boolean isBase64Encoded) throws MalformedURLException {
+    private void featureMapPutContent(
+            FeatureMap featureMap,
+            String mimeType,
+            String contentDigest,
+            String content,
+            boolean isBase64Encoded
+    ) throws MalformedURLException {
         featureMap.put(Document.DOCUMENT_MIME_TYPE_PARAMETER_NAME, mimeType);
         if (!isBase64Encoded)
             featureMap.put(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME, content);

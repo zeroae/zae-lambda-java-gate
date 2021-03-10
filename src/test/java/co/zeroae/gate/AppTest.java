@@ -11,7 +11,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.sun.xml.fastinfoset.stax.StAXDocumentParser;
 import gate.Document;
-import gate.DocumentFormat;
+import gate.util.GateException;
 import org.apache.commons.codec.binary.Base64InputStream;
 import org.junit.After;
 import org.junit.Before;
@@ -201,11 +201,11 @@ public class AppTest {
     }
 
     @Test
-    public void testInputTypes() {
+    public void testInputTypes() throws GateException {
         String[] types = {
                 "application/fastinfoset",
+                "application/json",
                 "text/html",
-                "text/json",
                 "text/plain",
                 "text/xml",
                 "text/x-cochrane",
@@ -213,7 +213,7 @@ public class AppTest {
                 "text/x-json-datasift",
                 "text/x-json-twitter",
         };
-        for (String type: types) assertNotNull(DocumentFormat.getMimeTypeForString(type));
+        for (String type: types) assertNotNull(Utils.ensureValidRequestContentType(type));
     }
 
     @Test
