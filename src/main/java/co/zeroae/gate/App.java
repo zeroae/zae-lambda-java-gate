@@ -70,7 +70,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         else if (path.matches("^/([^/]*)/metadata/?$"))
             return handleMetadata(input, context);
         else
-            throw new RuntimeException("How did you get here?");
+            throw new RuntimeException("Unexpected path expression " + path);
     }
 
     public APIGatewayProxyResponseEvent handleMetadata(APIGatewayProxyRequestEvent input, final Context context) {
