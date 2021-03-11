@@ -1,0 +1,14 @@
+### Send POST request with json body
+POST {{endpoint}}/{{name}}?annotations=:Token
+Content-Type: application/fastinfoset
+Accept: application/json
+
+< ./hello-world.finf
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 200, "Response status is not 200");
+  client.assert(response.contentType.mimeType === "application/json", "Content-Type is not application/json");
+  client.assert(response.body.text === "Hello World!", "Expected Hello World!");
+  client.assert(response.body.entities.Token.length === 3, "Expected 3 tokens.");
+});
+%}

@@ -1,0 +1,14 @@
+### GET The Annie Metadata endpoint
+GET {{endpoint}}/{{name}}/metadata
+
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 200, "Response status is not 200");
+  client.assert(response.contentType.mimeType === "application/json", "Content-Type is not application/json")
+  client.assert(response.body.name != null)
+  client.assert(response.body.defaultAnnotations != null)
+  client.assert(response.body.additionalAnnotations != null)
+  client.assert(response.body.costPerRequest > 0)
+  client.assert(response.body.dailyQuota > 0)
+});
+%}

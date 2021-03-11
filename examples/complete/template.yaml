@@ -10,6 +10,7 @@ Globals:
   Api:
     BinaryMediaTypes:
       - "application~1fastinfoset"
+      - "application~1tika"
   Function:
     Timeout: 120
 
