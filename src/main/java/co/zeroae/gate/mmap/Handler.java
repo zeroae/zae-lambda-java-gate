@@ -1,9 +1,8 @@
-package co.zeroae.gate.b64;
+package co.zeroae.gate.mmap;
 
 import com.amazonaws.util.Base64;
-import com.amazonaws.util.StringInputStream;
-import org.apache.commons.codec.binary.Base64InputStream;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -14,7 +13,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 public class Handler extends URLStreamHandler {
-    static final public Map<String, String> paths = Collections.synchronizedMap(new WeakHashMap<>());
+    public static final Map<String, byte[]> paths = Collections.synchronizedMap(new WeakHashMap<>());
 
     @Override
     protected URLConnection openConnection(URL u) {
@@ -43,9 +42,7 @@ public class Handler extends URLStreamHandler {
 
         @Override
         public InputStream getInputStream() throws IOException {
-            return new Base64InputStream(new StringInputStream(
-                    paths.get(url.getPath())
-            ));
+            return new ByteArrayInputStream(paths.get(url.getPath()));
         }
     }
 }

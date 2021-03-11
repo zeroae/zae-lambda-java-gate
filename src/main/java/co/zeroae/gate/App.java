@@ -1,6 +1,6 @@
 package co.zeroae.gate;
 
-import co.zeroae.gate.b64.Handler;
+import co.zeroae.gate.mmap.Handler;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
@@ -52,7 +52,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private static final AppMetadata metadata = loadMetadata();
     private static final DocumentLRUCache cache = AWSXRay.createSegment("Cache Init",
             () -> new DocumentLRUCache(App.CACHE_DIR, App.CACHE_DIR_USAGE));
-    private static final URLStreamHandler b64Handler = new Handler();
+    private static final URLStreamHandler mmapHandler = new Handler();
 
     private static AppMetadata loadMetadata() {
         final AppMetadata rv = new AppMetadata();
@@ -180,14 +180,14 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             featureMap.put(Document.DOCUMENT_STRING_CONTENT_PARAMETER_NAME, content);
         else {
             // GATE FastInfosetFormat can not handle binary in the string content.
-            Handler.paths.put(contentDigest, content);
+            Handler.paths.put(contentDigest, Base64.decode(content));
             featureMap.put(
                     Document.DOCUMENT_URL_PARAMETER_NAME,
-                    new URL("b64",
+                    new URL("mmap",
                             mimeType != null ? Base64.encodeAsString(mimeType.getBytes()) : null,
                             64,
                             contentDigest,
-                            b64Handler));
+                            mmapHandler));
         }
     }
 
