@@ -35,8 +35,9 @@ public class Utils {
     }
 
     static String ensureValidRequestContentType(String contentType) throws GateException {
-        final String rv = contentType.equals("application/json") ? "text/json" : contentType;
-        if (!DocumentFormat.getSupportedMimeTypes().contains(rv)) {
+        final MimeType mimeType = DocumentFormat.getMimeTypeForString(
+                contentType.equals("application/json") ? "text/json" : contentType);
+        if (mimeType == null) {
             throw new GateException(
                     "Unsupported MIME type " + contentType + " valid options are "
                             + Arrays.toString(DocumentFormat.getSupportedMimeTypes()
@@ -46,7 +47,7 @@ public class Utils {
                             .toArray())
             );
         }
-        return rv;
+        return mimeType.toString();
     }
 
     static String ensureValidResponseType(String acceptHeader) throws GateException {
