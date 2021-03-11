@@ -1,5 +1,5 @@
 ### Send POST request with json body
-POST {{endpoint}}/{{name}}?annotations=:Token
+POST {{endpoint}}/{{name}}?annotations=:Token&annotations=:Sentence
 Content-Type: text/plain
 Accept: application/json
 
@@ -10,11 +10,12 @@ client.test("Request executed successfully", function() {
   client.assert(response.contentType.mimeType === "application/json", "Content-Type is not application/json");
   client.assert(response.body.text === "Hello World!");
   client.assert(response.body.entities.Token.length === 3, "We have 3 tokens!");
+  client.assert(response.body.entities.Sentence.length === 1, "We have 1 sentence!");
 });
 %}
 
 ### Send POST request for gate+xml
-POST {{endpoint}}/{{name}}?annotations=:Token
+POST {{endpoint}}/{{name}}?annotations=:Token&annotations=:Sentence
 Content-Type: text/plain
 Accept: application/gate+xml
 
@@ -30,7 +31,7 @@ client.test("Request executed successfully", function() {
 %}
 
 ###
-POST {{endpoint}}/{{name}}?annotations=:Token
+POST {{endpoint}}/{{name}}?annotations=:Token&annotations=:Sentence
 Content-Type: text/plain
 Accept: application/gate+xml; includeText=no
 

@@ -232,7 +232,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
         // Include the selected annotations in the doc features.
         if (annotationSelector != null)
-            doc.getFeatures().put("gate.cloud.annotationSelectors", annotationSelector);
+            doc.getFeatures().put("gate.cloud.annotationSelectors", String.join(",", annotationSelector));
 
         // Take *all* annotation types and filter based on AnnotationSelector
         final AnnotationSet defaultAnnots = doc.getAnnotations();
