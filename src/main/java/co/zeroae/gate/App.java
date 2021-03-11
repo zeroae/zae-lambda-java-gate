@@ -13,8 +13,8 @@ import gate.*;
 import gate.corpora.DocumentImpl;
 import gate.util.GateException;
 import gate.util.persistence.PersistenceManager;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -46,7 +46,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             "CACHE_DIR_PREFIX", "/tmp/lru/" + GATE_APP_NAME);
     private static final double CACHE_DIR_USAGE = .9;
     private static final String DIGEST_SALT = UUID.randomUUID().toString();
-    private static final Logger logger = LogManager.getLogger(App.class);
+    private static final Logger logger = LoggerFactory.getLogger(App.class);
     private static final CorpusController application = AWSXRay.createSegment(
             "Gate Load", App::loadApplication);
     private static final AppMetadata metadata = loadMetadata();
@@ -148,7 +148,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                 AWSXRay.endSubsegment();
             }
         } catch (GateException e) {
-            logger.error(e);
+            logger.error(e.getMessage(), e);
             AWSXRay.getCurrentSubsegmentOptional().ifPresent((segment -> segment.addException(e)));
             response.getHeaders().put("Content-Type", "application/json");
             return response.withStatusCode(400).withBody(Utils.asJson(
@@ -157,7 +157,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                     }}
             ));
         } catch (IOException e) {
-            logger.error(e);
+            logger.error(e.getMessage(), e);
             AWSXRay.getCurrentSubsegmentOptional().ifPresent((segment -> segment.addException(e)));
             response.getHeaders().put("Content-Type", "application/json");
             return response.withStatusCode(406).withBody(Utils.asJson(

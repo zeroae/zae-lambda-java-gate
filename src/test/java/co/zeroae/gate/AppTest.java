@@ -24,7 +24,10 @@ import javax.xml.stream.XMLStreamReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Random;
+import java.util.UUID;
 
 import static com.github.stefanbirkner.systemlambda.SystemLambda.withEnvironmentVariable;
 import static org.junit.Assert.*;
@@ -38,7 +41,7 @@ public class AppTest {
     }
 
     private static App app = null;
-    private static TestContext context = new TestContext();
+    private static final TestContext context = new TestContext();
 
     @Before
     public void setUp() {
@@ -213,7 +216,10 @@ public class AppTest {
                 "text/x-json-datasift",
                 "text/x-json-twitter",
         };
-        for (String type: types) assertNotNull(Utils.ensureValidRequestContentType(type));
+        for (String type : types) assertNotNull(Utils.ensureValidRequestContentType(type));
+
+        // This replicates issue #50
+        assertNotNull(Utils.ensureValidRequestContentType("text/plain; charset=UTF-8"));
     }
 
     @Test
