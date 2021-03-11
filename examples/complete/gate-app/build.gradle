@@ -2,6 +2,7 @@ plugins {
     id 'java'
 }
 
+ext.binDir = file("$buildDir/bin")
 ext.gateCloudDir = file("$buildDir/gatecloud")
 ext.gateApplicationDir = file("$gateCloudDir/application")
 
@@ -45,11 +46,18 @@ task packagegapp() {
     }
 }
 
+task copyBin(type: Copy) {
+    from "../wrapper.sh"
+    into binDir
+
+    fileMode 0755
+}
+
 task gatecloudUnpack(type: Copy) {
     def zipFile = file("application.zip")
-    def outputDir = gateApplicationDir
 
     from zipTree(zipFile)
-    into outputDir
+    into gateApplicationDir
 }
 sourceSets.main.output.dir gateCloudDir, builtBy: gatecloudUnpack
+sourceSets.main.output.dir binDir, builtBy: copyBin

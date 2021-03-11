@@ -31,6 +31,7 @@ To build and deploy your application for the first time, run the following in yo
 
 ```bash
 sam build
+find .aws-sam -type f -name 'wrapper.sh' -exec chmod 755 {} \;
 sam deploy --guided
 ```
 
@@ -49,7 +50,8 @@ You can find your API Gateway Endpoint URL in the output values displayed after 
 Build your application with the `sam build` command.
 
 ```bash
-zeroae.gate$ sam build
+zeroae.gate$ sam build 
+zeroae.gate$ find .aws-sam -type f -name 'wrapper.sh' -exec chmod 755 {} \;
 ```
 
 The SAM CLI installs dependencies defined in `gate-app/build.gradle`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
