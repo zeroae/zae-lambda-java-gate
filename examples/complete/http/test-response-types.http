@@ -1,0 +1,62 @@
+### Send POST request with json body
+POST {{endpoint}}/{{name}}?annotations=:Token
+Content-Type: text/plain
+Accept: application/json
+
+< hello-world.txt
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 200, "Response status is not 200");
+  client.assert(response.contentType.mimeType === "application/json", "Content-Type is not application/json");
+  client.assert(response.body.text === "Hello World!");
+  client.assert(response.body.entities.Token.length === 3, "We have 3 tokens!");
+});
+%}
+
+### Send POST request for gate+xml
+POST {{endpoint}}/{{name}}?annotations=:Token
+Content-Type: text/plain
+Accept: application/gate+xml
+
+< hello-world.txt
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 200, "Response status is not 200");
+  client.assert(response.contentType.mimeType === "application/gate+xml", "Expected application/gate+xml");
+  client.assert(response.body.contains("<GateDocument"), "Expected <<GateDocument>> field.");
+  client.assert(response.body.contains("<Text"), "Expected <<Text>> field.");
+  client.assert(response.body.contains("<AnnotationSet"), "Expected <<AnnotationSet>> field.");
+});
+%}
+
+###
+POST {{endpoint}}/{{name}}?annotations=:Token
+Content-Type: text/plain
+Accept: application/gate+xml; includeText=no
+
+< hello-world.txt
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.status === 200, "Response status is not 200");
+  client.assert(response.contentType.mimeType === "application/gate+xml", "Expected application/gate+xml");
+  client.assert(response.body.contains("<GateDocument"), "Expected <<GateDocument>> field.");
+  client.assert(!response.body.contains("<Text"), "Expected <<Text>> field.");
+  client.assert(response.body.contains("<AnnotationSet"), "Expected <<AnnotationSet>> field.");
+});
+%}
+
+### Send POST request for gate+xml
+POST {{endpoint}}/{{name}}?annotations=:Token
+Content-Type: text/plain
+Accept: application/fastinfoset
+
+< hello-world.txt
+
+### Send POST request for gate+xml
+# When using local, the response is b64 instead of the binary format.
+# Probably a bug in SAM...
+POST {{endpoint}}/{{name}}?annotations=:Token
+Content-Type: text/plain
+Accept: application/fastinfoset; includeText=no
+
+< hello-world.txt
