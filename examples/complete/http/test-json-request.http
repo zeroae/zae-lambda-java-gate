@@ -8,7 +8,7 @@ Accept: application/json
 client.test("Request executed successfully", function() {
   client.assert(response.status === 200, "Response status is not 200");
   client.assert(response.contentType.mimeType === "application/json", "Content-Type is not application/json");
-  client.assert(response.body.text === "Hello World!", "Expected Hello World!");
+  client.assert(response.body.text === "Hello World!", "Expected `Hello World!' but got `" + response.body.text + "'");
   client.assert(response.body.entities.Token.length === 3, "Expected 3 tokens.");
 });
 %}
