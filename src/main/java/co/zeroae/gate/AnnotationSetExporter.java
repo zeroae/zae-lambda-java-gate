@@ -1,6 +1,7 @@
 package co.zeroae.gate;
 
 import com.sun.xml.fastinfoset.stax.StAXDocumentSerializer;
+import gate.AnnotationSet;
 import gate.Document;
 import gate.DocumentExporter;
 import gate.FeatureMap;
@@ -11,6 +12,8 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Set;
+import java.util.function.Supplier;
 
 import static gate.corpora.DocumentStaxUtils.GATE_XML_VERSION;
 
@@ -28,15 +31,28 @@ abstract class AnnotationSetExporter extends DocumentExporter {
     }
 
     protected void export(Document doc, XMLStreamWriter xsw, FeatureMap options) throws XMLStreamException {
+        final AnnotationSet annotations = filterAnnotationSet(doc.getAnnotations(), options);
         final String namespaceURI = "";
         xsw.writeStartDocument("1.0");
         xsw.setDefaultNamespace(namespaceURI);
         xsw.writeStartElement(namespaceURI, "GateDocument");
         xsw.writeAttribute("version", GATE_XML_VERSION);
-        DocumentStaxUtils.writeAnnotationSet(doc.getAnnotations(), xsw, namespaceURI);
+        DocumentStaxUtils.writeAnnotationSet(annotations, xsw, namespaceURI);
         xsw.writeEndDocument();
         xsw.flush();
         xsw.close();
+    }
+
+    @SuppressWarnings("unchecked")
+    private AnnotationSet filterAnnotationSet(AnnotationSet annotations, FeatureMap options) {
+        final Set<String> annotationTypes = ((Supplier<Set<String>>) () -> {
+            Object types = options.get("annotationTypes");
+            if (types instanceof Set) {
+                return (Set<String>) types;
+            } else
+                return null;
+        }).get();
+        return annotationTypes != null ? annotations.get(annotationTypes) : annotations;
     }
 
     static class GATEFastInfoset extends AnnotationSetExporter {

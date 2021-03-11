@@ -236,8 +236,6 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
         // Take *all* annotation types and filter based on AnnotationSelector
         final AnnotationSet defaultAnnots = doc.getAnnotations();
-
-        // This if for GateJSONExporter (but should be for all exporters...)
         final Set<String> includeTypes = new HashSet<>(defaultAnnots.getAllTypes());
         if (annotationSelector != null)
             includeTypes.removeIf((type) -> !annotationSelector.contains(":" + type));
