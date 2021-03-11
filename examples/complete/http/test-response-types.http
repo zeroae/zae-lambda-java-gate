@@ -53,6 +53,8 @@ Accept: application/fastinfoset
 < hello-world.txt
 
 ### Send POST request for gate+xml
+# When using local, the response is b64 instead of the binary format.
+# Probably a bug in SAM...
 POST {{endpoint}}/{{name}}?annotations=:Token
 Content-Type: text/plain
 Accept: application/fastinfoset; includeText=no
