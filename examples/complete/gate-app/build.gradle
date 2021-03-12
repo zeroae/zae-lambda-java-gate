@@ -46,13 +46,6 @@ task packagegapp() {
     }
 }
 
-task copyBin(type: Copy) {
-    from "../wrapper.sh"
-    into binDir
-
-    fileMode 0755
-}
-
 task gatecloudUnpack(type: Copy) {
     def zipFile = file("application.zip")
 
@@ -60,4 +53,3 @@ task gatecloudUnpack(type: Copy) {
     into gateApplicationDir
 }
 sourceSets.main.output.dir gateCloudDir, builtBy: gatecloudUnpack
-sourceSets.main.output.dir binDir, builtBy: copyBin
