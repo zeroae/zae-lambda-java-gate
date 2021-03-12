@@ -7,15 +7,6 @@ ext.gateApplicationDir = file("$gateCloudDir/application")
 
 repositories {
     mavenCentral()
-    /*
-    maven {
-        url 'https://maven.pkg.github.com/zeroae/packages'
-        credentials {
-            username = project.findProperty("github.username") ?: System.getenv("GITHUB_USER")
-            password = project.findProperty("github.token") ?: System.getenv("GITHUB_TOKEN")
-        }
-    }
-     */
 }
 
 configurations {
@@ -23,7 +14,6 @@ configurations {
 }
 
 dependencies {
-    implementation project(":zae-lambda-java-gate")
     gate 'uk.ac.gate:gate-core:8.6.1'
 }
 

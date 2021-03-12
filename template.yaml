@@ -28,7 +28,7 @@ Resources:
       Description: !Sub
         - ZeroAE's GATE Lambda Layer ${version}
         - version: !Ref Version
-      ContentUri: .
+      ContentUri: ./lambda-layer
       CompatibleRuntimes:
         - java11
         - java8.al2

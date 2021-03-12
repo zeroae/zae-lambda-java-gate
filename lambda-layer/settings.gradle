@@ -1,0 +1,4 @@
+rootProject.name = 'zae-lambda-gate-java-layer'
+
+include ':zae-lambda-java-gate'
+project(':zae-lambda-java-gate').projectDir = new File('../')

@@ -25,6 +25,20 @@ Resources:
       LicenseInfo: "Apache-2.0"
       RetentionPolicy: Delete
 
+  ZAEGateLambdaLayer:
+    Type: AWS::Serverless::LayerVersion
+    Metadata:
+      BuildMethod: java8.al2
+    Properties:
+      LayerName: zae-lambda-java-gate
+      Description: ZeroAE's GATE Lambda Layer
+      ContentUri: ../../lambda-layer
+      CompatibleRuntimes:
+        - java11
+        - java8.al2
+      LicenseInfo: 'AGPL-3.0'
+      RetentionPolicy: Delete
+
   LambdaGateApp:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
@@ -34,6 +48,7 @@ Resources:
       MemorySize: 512
       Layers:
         - !Ref ZAERuntimeWrapper
+        - !Ref ZAEGateLambdaLayer
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
           AWS_LAMBDA_EXEC_WRAPPER: /opt/bin/wrapper.sh
