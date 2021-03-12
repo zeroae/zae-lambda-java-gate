@@ -50,7 +50,6 @@ Build your application with the `sam build` command.
 
 ```bash
 zeroae.gate$ sam build 
-zeroae.gate$ find .aws-sam -type f -name 'wrapper.sh' -exec chmod 755 {} \;
 ```
 
 The SAM CLI installs dependencies defined in `gate-app/build.gradle`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
