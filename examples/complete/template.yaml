@@ -21,7 +21,7 @@ Resources:
       BuildMethod: makefile
     Properties:
       Description: ZeroAE's Runtime Wrapper
-      ContentUri: ../..
+      ContentUri: ../../runtime-wrapper
       LicenseInfo: "Apache-2.0"
       RetentionPolicy: Delete
 
