@@ -16,13 +16,13 @@ jobs:
       - name: Build with SAM
         uses: tkt-actions/aws-sam-cli@v1
         with:
-          cmd: 'sam build'
+          cmd: sam build
       - name: Publish with SAM
         run: ./gradlew publish
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
-       with:
-         cmd: |
-           sam deploy --parameter-overrides "Version=${GITHUB_REF}"
+        with:
+          cmd: |
+            sam deploy --parameter-overrides "Version=${GITHUB_REF}"
