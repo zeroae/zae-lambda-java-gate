@@ -21,7 +21,6 @@ jobs:
         uses: tkt-actions/aws-sam-cli@v1
         with:
           cmd: |
-            git_version=
             sam deploy --parameter-overrides "Version=$(git describe --tags)"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
