@@ -41,8 +41,10 @@ Resources:
 
   LambdaGateApp:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Metadata:
+      BuildMethod: makefile
     Properties:
-      CodeUri: gate-app
+      CodeUri: .
       Handler: co.zeroae.gate.App::handleRequest
       Runtime: java8.al2
       MemorySize: 512
