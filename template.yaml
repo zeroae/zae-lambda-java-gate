@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: co.zeroae.gate
+
+Parameters:
+  Version:
+    Type: String
+    Description: The Layer version (SNAPSHOT, 1.0.0, etc...)
+
+Resources:
+  ZAEGateLambdaLayer:
+    Type: AWS::Serverless::LayerVersion
+    Metadata:
+      BuildMethod: java8.al2
+    Properties:
+      LayerName: zae-lambda-java-gate
+      Description: !Sub
+        - ZeroAE's GATE Lambda Layer ${version}
+        - version: !Ref Version
+      ContentUri: .
+      CompatibleRuntimes:
+        - java11
+        - java8.al2
+      LicenseInfo: 'AGPL-3.0'
+      RetentionPolicy: Retain
+
+Outputs:
+  ZAEGateLambdaLayer:
+    Description: "ZeroAE's GATE Lambda ARN"
+    Value: !Ref ZAEGateLambdaLayer
