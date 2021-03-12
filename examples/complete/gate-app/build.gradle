@@ -2,7 +2,6 @@ plugins {
     id 'java'
 }
 
-ext.binDir = file("$buildDir/bin")
 ext.gateCloudDir = file("$buildDir/gatecloud")
 ext.gateApplicationDir = file("$gateCloudDir/application")
 
