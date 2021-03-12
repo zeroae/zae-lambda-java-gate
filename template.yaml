@@ -8,6 +8,17 @@ Parameters:
     Description: The Layer version (SNAPSHOT, 1.0.0, etc...)
 
 Resources:
+  ZAERuntimeWrapper:
+    Type: AWS::Serverless::LayerVersion
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      LayerName: zae-lambda-runtime-wrapper
+      Description: ZeroAE's Runtime Wrapper
+      ContentUri: runtime-wrapper
+      LicenseInfo: "Apache-2.0"
+      RetentionPolicy: Retain
+
   ZAEGateLambdaLayer:
     Type: AWS::Serverless::LayerVersion
     Metadata:

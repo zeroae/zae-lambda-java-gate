@@ -49,7 +49,7 @@ You can find your API Gateway Endpoint URL in the output values displayed after 
 Build your application with the `sam build` command.
 
 ```bash
-zeroae.gate$ sam build
+zeroae.gate$ sam build 
 ```
 
 The SAM CLI installs dependencies defined in `gate-app/build.gradle`, creates a deployment package, and saves it in the `.aws-sam/build` folder.

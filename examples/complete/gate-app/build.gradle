@@ -47,9 +47,8 @@ task packagegapp() {
 
 task gatecloudUnpack(type: Copy) {
     def zipFile = file("application.zip")
-    def outputDir = gateApplicationDir
 
     from zipTree(zipFile)
-    into outputDir
+    into gateApplicationDir
 }
 sourceSets.main.output.dir gateCloudDir, builtBy: gatecloudUnpack
