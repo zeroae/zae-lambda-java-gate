@@ -1,0 +1,9 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "zae-lambda-java-gate"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-ain69asg8go5"
+s3_prefix = "zae-lambda-java-gate"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
