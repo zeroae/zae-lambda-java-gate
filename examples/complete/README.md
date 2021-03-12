@@ -31,7 +31,6 @@ To build and deploy your application for the first time, run the following in yo
 
 ```bash
 sam build
-find .aws-sam -type f -name 'wrapper.sh' -exec chmod 755 {} \;
 sam deploy --guided
 ```
 
