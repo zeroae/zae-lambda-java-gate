@@ -19,6 +19,13 @@ Resources:
       LicenseInfo: "Apache-2.0"
       RetentionPolicy: Retain
 
+  ZAERuntimeWrapperPublic:
+    Type: AWS::Lambda::LayerVersionPermission
+    Properties:
+      Action: lambda:GetLayerVersion
+      LayerVersionArn: !Ref ZAERuntimeWrapper
+      Principal: "*"
+
   ZAEGateLambdaLayer:
     Type: AWS::Serverless::LayerVersion
     Metadata:
@@ -34,6 +41,13 @@ Resources:
         - java8.al2
       LicenseInfo: 'AGPL-3.0'
       RetentionPolicy: Retain
+
+  ZAEGateLambdaPublic:
+    Type: AWS::Lambda::LayerVersionPermission
+    Properties:
+      Action: lambda:GetLayerVersion
+      LayerVersionArn: !Ref ZAEGateLambdaLayer
+      Principal: "*"
 
 Outputs:
   ZAERuntimeWrapper:
