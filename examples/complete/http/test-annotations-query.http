@@ -1,0 +1,38 @@
+### POST Single AnnotationRequest
+POST {{endpoint}}/{{name}}?annotations=:Token
+Content-Type: application/fastinfoset
+Accept: application/json
+
+< ./hello-world.finf
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.body.entities.Token.length === 3, "Expected 3 tokens.");
+});
+%}
+
+
+### POST MultiValue AnnotationRequest
+POST {{endpoint}}/{{name}}?annotations=:Token&annotations=:Sentence
+Content-Type: application/fastinfoset
+Accept: application/json
+
+< ./hello-world.finf
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.body.entities.Token.length === 3, "Expected 3 tokens.");
+  client.assert(response.body.entities.Sentence.length === 1, "Expected 1 sentence.");
+});
+%}
+
+### POST multi-valued comma separated annotations query
+POST {{endpoint}}/{{name}}?annotations=:Token, :Sentence
+Content-Type: application/fastinfoset
+Accept: application/json
+
+< ./hello-world.finf
+> {%
+client.test("Request executed successfully", function() {
+  client.assert(response.body.entities.Token.length === 3, "Expected 3 tokens.");
+  client.assert(response.body.entities.Sentence.length === 1, "Expected 1 sentence.");
+});
+%}

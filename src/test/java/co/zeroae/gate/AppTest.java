@@ -105,11 +105,21 @@ public class AppTest {
         // Now we downselect to only one field.
         input.withMultiValueQueryStringParameters(new HashMap<>())
                 .getMultiValueQueryStringParameters()
-               .put("annotations", Collections.singletonList(":Token"));
+                .put("annotations", Collections.singletonList(":Token"));
         result = app.handleRequest(input, context);
 
         doc = Utils.xmlToDocument(new StringReader(result.getBody()));
         assertEquals(1, doc.getAnnotations().getAllTypes().size());
+
+        // Do the same but URL Encode the annotations query
+        input.withMultiValueQueryStringParameters(null)
+                .withQueryStringParameters(new HashMap<>())
+                .getQueryStringParameters()
+                .put("annotations", ":Token, :Sentence");
+        result = app.handleRequest(input, context);
+        doc = Utils.xmlToDocument(new StringReader(result.getBody()));
+        assertEquals(2, doc.getAnnotations().getAllTypes().size());
+
     }
 
     @Test
