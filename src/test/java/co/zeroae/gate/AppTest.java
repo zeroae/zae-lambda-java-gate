@@ -111,7 +111,6 @@ public class AppTest {
         doc = Utils.xmlToDocument(new StringReader(result.getBody()));
         assertEquals(1, doc.getAnnotations().getAllTypes().size());
 
-        // Do the same but URL Encode the annotations query
         input.withMultiValueQueryStringParameters(null)
                 .withQueryStringParameters(new HashMap<>())
                 .getQueryStringParameters()
