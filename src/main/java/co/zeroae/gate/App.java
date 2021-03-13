@@ -23,6 +23,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLStreamHandler;
 import java.util.*;
+import java.util.function.Supplier;
 
 /**
  * This class implements a GATE application using AWS Lambda.
@@ -139,7 +140,12 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
             AWSXRay.beginSubsegment("Gate Export");
             AWSXRay.getCurrentSubsegment().putMetadata("Content-Type", response.getHeaders().get("Content-Type"));
-            final List<String> annotationSelector = mQueryStringParams.get("annotations");
+            final List<String> annotationSelector = ((Supplier<List<String>>) () -> {
+                String singleValued = queryStringParams.get("annotations");
+                if (singleValued == null)
+                    return mQueryStringParams.get("annotations");
+                return Arrays.asList(singleValued.split("\\s*,\\s*"));
+            }).get();
 
             try {
                 return export(exporter, doc, annotationSelector, response).withStatusCode(200);
