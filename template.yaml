@@ -36,6 +36,9 @@ Resources:
       RetentionPolicy: Retain
 
 Outputs:
+  ZAERuntimeWrapper:
+    Description: "ZeroAE's Lambda RuntimeWrapper ARN"
+    Value: !Ref ZAERuntimeWrapper
   ZAEGateLambdaLayer:
     Description: "ZeroAE's GATE Lambda ARN"
     Value: !Ref ZAEGateLambdaLayer
