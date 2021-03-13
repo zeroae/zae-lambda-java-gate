@@ -15,48 +15,23 @@ Globals:
     Timeout: 120
 
 Resources:
-  ZAERuntimeWrapper:
-    Type: AWS::Serverless::LayerVersion
+  LambdaGateApp:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Metadata:
       BuildMethod: makefile
     Properties:
-      Description: ZeroAE's Runtime Wrapper
-      ContentUri: ../../runtime-wrapper
-      LicenseInfo: "Apache-2.0"
-      RetentionPolicy: Delete
-
-  ZAEGateLambdaLayer:
-    Type: AWS::Serverless::LayerVersion
-    Metadata:
-      BuildMethod: java8.al2
-    Properties:
-      LayerName: zae-lambda-java-gate
-      Description: ZeroAE's GATE Lambda Layer
-      ContentUri: ../../lambda-layer
-      CompatibleRuntimes:
-        - java11
-        - java8.al2
-      LicenseInfo: 'AGPL-3.0'
-      RetentionPolicy: Delete
-
-  LambdaGateApp:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
-    Properties:
-      CodeUri: gate-app
+      CodeUri: .
       Handler: co.zeroae.gate.App::handleRequest
       Runtime: java8.al2
-      MemorySize: 512
+      MemorySize: 1024
       Layers:
-        - !Ref ZAERuntimeWrapper
-        - !Ref ZAEGateLambdaLayer
+        - arn:aws:lambda:us-east-1:162714053306:layer:zae-lambda-java-gate:8
+        - arn:aws:lambda:us-east-1:162714053306:layer:zae-lambda-runtime-wrapper:1
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
           AWS_LAMBDA_EXEC_WRAPPER: /opt/bin/wrapper.sh
           AWS_LAMBDA_EXEC_WRAPPER_EXCLUDE_ARGS: >-
             -XX:+UseSerialGC
-          JAVA_TOOL_OPTIONS: >-
-            -XX:+PrintGC
-            -XX:+PrintGCDetails
           GATE_APP_NAME: application
           GATE_APP_COST_PER_REQUEST: 1
           GATE_APP_DAILY_QUOTA: 10000
